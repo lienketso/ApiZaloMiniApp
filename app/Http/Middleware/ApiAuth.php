@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
+
 class ApiAuth
 {
     /**
@@ -15,10 +16,19 @@ class ApiAuth
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Kiểm tra token trong header Authorization
+        if (!$request->bearerToken()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access token required'
+            ], 401);
+        }
+
+        // Kiểm tra authentication với guard sanctum
         if (!Auth::guard('sanctum')->check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized - Invalid or expired token'
             ], 401);
         }
 

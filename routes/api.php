@@ -24,6 +24,14 @@ use App\Http\Controllers\MatchController;
 */
 
 // Public routes
+Route::get('/test', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'API is working!',
+        'timestamp' => now()
+    ]);
+});
+
 Route::post('/auth/login', [ZaloAuthController::class, 'login']);
 Route::post('/auth/zalo/auto-login', [ZaloAuthController::class, 'login']);
 Route::post('/auth/zalo/register', [ZaloAuthController::class, 'register']);

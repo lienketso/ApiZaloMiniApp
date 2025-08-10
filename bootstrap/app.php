@@ -21,6 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Thêm CORS middleware
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
         
+        // Đảm bảo API routes không bị redirect
+        $middleware->preventRequestsDuringMaintenance();
+        
         $middleware->alias([
             'api.auth' => ApiAuth::class,
         ]);
