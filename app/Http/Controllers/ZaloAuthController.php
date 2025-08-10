@@ -223,13 +223,18 @@ class ZaloAuthController extends Controller
     }
 
     /**
-     * Auto login - kiểm tra và tạo token mới nếu cần
+     * Auto login - kiểm tra và tạo tài khoản mới nếu chưa có
      */
     public function autoLogin(Request $request)
     {
         try {
             $request->validate([
                 'zalo_gid' => 'required|string',
+                'name' => 'required|string|max:255',
+                'phone' => 'nullable|string|max:20',
+                'email' => 'nullable|email|max:255',
+                'zalo_name' => 'nullable|string|max:255',
+                'zalo_avatar' => 'nullable|url|max:500',
             ]);
 
             $zaloGid = $request->zalo_gid;
@@ -238,11 +243,37 @@ class ZaloAuthController extends Controller
             $user = User::where('zalo_gid', $zaloGid)->first();
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Tài khoản chưa được đăng ký',
-                    'authenticated' => false
-                ], 404);
+                // Tạo user mới nếu chưa tồn tại
+                $user = User::create([
+                    'name' => $request->name,
+                    'phone' => $request->phone,
+                    'email' => $request->email,
+                    'zalo_gid' => $zaloGid,
+                    'zalo_name' => $request->zalo_name,
+                    'zalo_avatar' => $request->zalo_avatar,
+                    'role' => 'Member',
+                    'join_date' => now(),
+                    'password' => Hash::make(Str::random(16)),
+                ]);
+
+                \Log::info('Auto-created new user during auto login', [
+                    'zalo_gid' => $zaloGid,
+                    'name' => $request->name,
+                    'created_at' => now()
+                ]);
+            } else {
+                // Cập nhật thông tin nếu user đã tồn tại
+                $user->update([
+                    'name' => $request->name,
+                    'zalo_name' => $request->zalo_name,
+                    'zalo_avatar' => $request->zalo_avatar,
+                ]);
+
+                \Log::info('Updated existing user during auto login', [
+                    'zalo_gid' => $zaloGid,
+                    'name' => $request->name,
+                    'updated_at' => now()
+                ]);
             }
 
             // Tạo token mới
@@ -254,8 +285,9 @@ class ZaloAuthController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Auto login successful',
+                'message' => $user->wasRecentlyCreated ? 'Tài khoản mới được tạo và đăng nhập thành công' : 'Đăng nhập thành công',
                 'authenticated' => true,
+                'is_new_user' => $user->wasRecentlyCreated,
                 'data' => [
                     'token' => $newToken,
                     'user' => array_merge($user->toArray(), $stats)
@@ -263,9 +295,15 @@ class ZaloAuthController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Error during auto login', [
+                'zalo_gid' => $request->zalo_gid ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error during auto login',
+                'message' => 'Lỗi trong quá trình đăng nhập tự động',
                 'authenticated' => false,
                 'error' => $e->getMessage()
             ], 500);
