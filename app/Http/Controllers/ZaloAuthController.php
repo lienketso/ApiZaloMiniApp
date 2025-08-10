@@ -60,17 +60,26 @@ class ZaloAuthController extends Controller
         ]);
 
         // Tạo user mới
-        $user = User::create([
+        $userData = [
             'name' => $request->name,
             'phone' => $request->phone,
-            'email' => $request->email,
             'zalo_gid' => $request->zalo_gid,
             'zalo_name' => $request->zalo_name,
             'zalo_avatar' => $request->zalo_avatar,
             'role' => 'Member',
             'join_date' => now(),
             'password' => Hash::make(Str::random(16)), // Random password
-        ]);
+        ];
+        
+        // Chỉ thêm email nếu có giá trị
+        if (!empty($request->email)) {
+            $userData['email'] = $request->email;
+        } else {
+            // Tạo email tạm thời từ zalo_gid nếu không có email
+            $userData['email'] = 'zalo_' . $request->zalo_gid . '@temp.com';
+        }
+        
+        $user = User::create($userData);
 
         // Tạo token
         $token = $user->createToken('zalo-mini-app')->plainTextToken;
@@ -109,17 +118,26 @@ class ZaloAuthController extends Controller
 
         if (!$user) {
             // Tạo user mới nếu chưa tồn tại
-            $user = User::create([
+            $userData = [
                 'name' => $request->name,
                 'phone' => $request->phone,
-                'email' => $request->email,
                 'zalo_gid' => $zaloGid,
                 'zalo_name' => $request->zalo_name,
                 'zalo_avatar' => $request->zalo_avatar,
                 'role' => 'Member',
                 'join_date' => now(),
                 'password' => Hash::make(Str::random(16)),
-            ]);
+            ];
+            
+            // Chỉ thêm email nếu có giá trị
+            if (!empty($request->email)) {
+                $userData['email'] = $request->email;
+            } else {
+                // Tạo email tạm thời từ zalo_gid nếu không có email
+                $userData['email'] = 'zalo_' . $zaloGid . '@temp.com';
+            }
+            
+            $user = User::create($userData);
         } else {
             // Cập nhật thông tin nếu user đã tồn tại
             $user->update([
@@ -244,17 +262,26 @@ class ZaloAuthController extends Controller
 
             if (!$user) {
                 // Tạo user mới nếu chưa tồn tại
-                $user = User::create([
+                $userData = [
                     'name' => $request->name,
                     'phone' => $request->phone,
-                    'email' => $request->email,
                     'zalo_gid' => $zaloGid,
                     'zalo_name' => $request->zalo_name,
                     'zalo_avatar' => $request->zalo_avatar,
                     'role' => 'Member',
                     'join_date' => now(),
                     'password' => Hash::make(Str::random(16)),
-                ]);
+                ];
+                
+                // Chỉ thêm email nếu có giá trị
+                if (!empty($request->email)) {
+                    $userData['email'] = $request->email;
+                } else {
+                    // Tạo email tạm thời từ zalo_gid nếu không có email
+                    $userData['email'] = 'zalo_' . $zaloGid . '@temp.com';
+                }
+                
+                $user = User::create($userData);
 
                 \Log::info('Auto-created new user during auto login', [
                     'zalo_gid' => $zaloGid,
