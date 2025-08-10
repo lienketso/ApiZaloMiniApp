@@ -248,11 +248,7 @@ class ZaloAuthController extends Controller
         try {
             $request->validate([
                 'zalo_gid' => 'required|string',
-                'name' => 'required|string|max:255',
-                'phone' => 'nullable|string|max:20',
-                'email' => 'nullable|email|max:255',
-                'zalo_name' => 'nullable|string|max:255',
-                'zalo_avatar' => 'nullable|url|max:500',
+                'name' => 'required|string|max:255'
             ]);
 
             $zaloGid = $request->zalo_gid;
@@ -264,24 +260,44 @@ class ZaloAuthController extends Controller
                 // Tạo user mới nếu chưa tồn tại
                 $userData = [
                     'name' => $request->name,
-                    'phone' => $request->phone,
+                    'phone' => $request->phone ?? null,
                     'zalo_gid' => $zaloGid,
-                    'zalo_name' => $request->zalo_name,
-                    'zalo_avatar' => $request->zalo_avatar,
+                    'zalo_name' => $request->name, // Sử dụng name làm zalo_name
+                    'zalo_avatar' => null,
                     'role' => 'Member',
                     'join_date' => now(),
                     'password' => Hash::make(Str::random(16)),
+                    'email' => 'zalo_' . $zaloGid . '@temp.com', // Email tạm thời bắt buộc
                 ];
                 
-                // Chỉ thêm email nếu có giá trị
-                if (!empty($request->email)) {
-                    $userData['email'] = $request->email;
-                } else {
-                    // Tạo email tạm thời từ zalo_gid nếu không có email
-                    $userData['email'] = 'zalo_' . $zaloGid . '@temp.com';
-                }
+                \Log::info('Attempting to create user with data:', $userData);
                 
-                $user = User::create($userData);
+                try {
+                    // Debug: Kiểm tra database connection
+                    \Log::info('Database connection test:', [
+                        'connection' => \DB::connection()->getName(),
+                        'database' => \DB::connection()->getDatabaseName()
+                    ]);
+                    
+                    // Debug: Kiểm tra table structure
+                    $tableStructure = \DB::select('DESCRIBE users');
+                    \Log::info('Users table structure:', $tableStructure);
+                    
+                    // Thử tạo user với DB::table thay vì Eloquent
+                    $userId = \DB::table('users')->insertGetId($userData);
+                    \Log::info('User created with DB::table, ID: ' . $userId);
+                    
+                    // Lấy user đã tạo
+                    $user = User::find($userId);
+                    
+                } catch (\Exception $createError) {
+                    \Log::error('Error creating user:', [
+                        'error' => $createError->getMessage(),
+                        'data' => $userData,
+                        'trace' => $createError->getTraceAsString()
+                    ]);
+                    throw $createError;
+                }
 
                 \Log::info('Auto-created new user during auto login', [
                     'zalo_gid' => $zaloGid,
