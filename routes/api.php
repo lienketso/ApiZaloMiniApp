@@ -32,56 +32,14 @@ Route::get('/test', function () {
     ]);
 });
 
-// Debug auto-login route
-Route::post('/auth/debug-auto-login', function (Request $request) {
-    try {
-        $data = $request->all();
-        \Log::info('Debug auto-login request:', $data);
-        
-        // Test tạo user
-        $user = \App\Models\User::create([
-            'name' => $data['name'] ?? 'Test User',
-            'email' => 'zalo_' . ($data['zalo_gid'] ?? 'test') . '@temp.com',
-            'phone' => $data['phone'] ?? null,
-            'zalo_gid' => $data['zalo_gid'] ?? 'test',
-            'zalo_name' => $data['name'] ?? 'Test User',
-            'zalo_avatar' => null,
-            'role' => 'Member',
-            'join_date' => now(),
-            'password' => \Illuminate\Support\Facades\Hash::make('password123'),
-        ]);
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Debug user created successfully',
-            'user_id' => $user->id,
-            'data' => $data
-        ]);
-        
-    } catch (\Exception $e) {
-        \Log::error('Debug auto-login error:', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Debug error: ' . $e->getMessage(),
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
-
-Route::post('/auth/login', [ZaloAuthController::class, 'login']);
+// Zalo Auth routes (public)
+Route::post('/auth/zalo/login', [ZaloAuthController::class, 'login']);
 Route::post('/auth/zalo/auto-login', [ZaloAuthController::class, 'autoLogin']);
 Route::post('/auth/zalo/register', [ZaloAuthController::class, 'register']);
 Route::post('/auth/zalo/login-or-register', [ZaloAuthController::class, 'loginOrRegister']);
 
 // Check auth route (public)
 Route::get('/auth/check', [ZaloAuthController::class, 'checkAuth']);
-
-// Auto login route (public)
-Route::post('/auth/auto-login', [ZaloAuthController::class, 'autoLogin']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {

@@ -75,10 +75,17 @@ class User extends Authenticatable
         return $this->hasMany(UserClub::class);
     }
 
-    // Relationship với Attendance
+    // Relationship với Attendance thông qua Member
     public function attendances()
     {
-//        return $this->hasMany(Attendance::class, 'member_id');
+        return $this->hasManyThrough(
+            Attendance::class,
+            Member::class,
+            'user_id', // Foreign key trên members table
+            'member_id', // Foreign key trên attendance table
+            'id', // Local key trên users table
+            'id' // Local key trên members table
+        );
     }
 
 }

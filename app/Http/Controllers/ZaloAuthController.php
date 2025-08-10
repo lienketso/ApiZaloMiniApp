@@ -168,15 +168,40 @@ class ZaloAuthController extends Controller
      */
     private function calculateUserStats(User $user)
     {
-        $totalEvents = \App\Models\Event::count();
-        $totalAttendance = $user->attendances()->count();
-        $attendanceRate = $totalEvents > 0 ? round(($totalAttendance / $totalEvents) * 100) : 0;
+        try {
+            $totalEvents = \App\Models\Event::count();
+            
+            // Kiểm tra xem user có member record không
+            $member = $user->member;
+            if (!$member) {
+                return [
+                    'total_events' => $totalEvents,
+                    'total_attendance' => 0,
+                    'attendance_rate' => 0,
+                ];
+            }
+            
+            $totalAttendance = $user->attendances()->count();
+            $attendanceRate = $totalEvents > 0 ? round(($totalAttendance / $totalEvents) * 100) : 0;
 
-        return [
-            'total_events' => $totalEvents,
-            'total_attendance' => $totalAttendance,
-            'attendance_rate' => $attendanceRate,
-        ];
+            return [
+                'total_events' => $totalEvents,
+                'total_attendance' => $totalAttendance,
+                'attendance_rate' => $attendanceRate,
+            ];
+        } catch (\Exception $e) {
+            \Log::warning('Error calculating user stats:', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+            
+            // Trả về stats mặc định nếu có lỗi
+            return [
+                'total_events' => 0,
+                'total_attendance' => 0,
+                'attendance_rate' => 0,
+            ];
+        }
     }
 
     /**
@@ -248,7 +273,10 @@ class ZaloAuthController extends Controller
         try {
             $request->validate([
                 'zalo_gid' => 'required|string',
-                'name' => 'required|string|max:255'
+                'name' => 'required|string|max:255',
+                'phone' => 'nullable|string|max:20',
+                'zalo_name' => 'nullable|string|max:255',
+                'zalo_avatar' => 'nullable|url|max:500',
             ]);
 
             $zaloGid = $request->zalo_gid;
@@ -262,8 +290,8 @@ class ZaloAuthController extends Controller
                     'name' => $request->name,
                     'phone' => $request->phone ?? null,
                     'zalo_gid' => $zaloGid,
-                    'zalo_name' => $request->name, // Sử dụng name làm zalo_name
-                    'zalo_avatar' => null,
+                    'zalo_name' => $request->zalo_name ?? $request->name, // Sử dụng zalo_name nếu có, không thì dùng name
+                    'zalo_avatar' => $request->zalo_avatar ?? null,
                     'role' => 'Member',
                     'join_date' => now(),
                     'password' => Hash::make(Str::random(16)),
@@ -273,22 +301,13 @@ class ZaloAuthController extends Controller
                 \Log::info('Attempting to create user with data:', $userData);
                 
                 try {
-                    // Debug: Kiểm tra database connection
-                    \Log::info('Database connection test:', [
-                        'connection' => \DB::connection()->getName(),
-                        'database' => \DB::connection()->getDatabaseName()
+                    // Tạo user mới
+                    $user = User::create($userData);
+                    
+                    \Log::info('User created successfully', [
+                        'user_id' => $user->id,
+                        'zalo_gid' => $zaloGid
                     ]);
-                    
-                    // Debug: Kiểm tra table structure
-                    $tableStructure = \DB::select('DESCRIBE users');
-                    \Log::info('Users table structure:', $tableStructure);
-                    
-                    // Thử tạo user với DB::table thay vì Eloquent
-                    $userId = \DB::table('users')->insertGetId($userData);
-                    \Log::info('User created with DB::table, ID: ' . $userId);
-                    
-                    // Lấy user đã tạo
-                    $user = User::find($userId);
                     
                 } catch (\Exception $createError) {
                     \Log::error('Error creating user:', [
@@ -306,11 +325,24 @@ class ZaloAuthController extends Controller
                 ]);
             } else {
                 // Cập nhật thông tin nếu user đã tồn tại
-                $user->update([
+                $updateData = [
                     'name' => $request->name,
-                    'zalo_name' => $request->zalo_name,
-                    'zalo_avatar' => $request->zalo_avatar,
-                ]);
+                ];
+                
+                // Chỉ cập nhật các trường có giá trị
+                if ($request->has('zalo_name') && !empty($request->zalo_name)) {
+                    $updateData['zalo_name'] = $request->zalo_name;
+                }
+                
+                if ($request->has('zalo_avatar') && !empty($request->zalo_avatar)) {
+                    $updateData['zalo_avatar'] = $request->zalo_avatar;
+                }
+                
+                if ($request->has('phone') && !empty($request->phone)) {
+                    $updateData['phone'] = $request->phone;
+                }
+                
+                $user->update($updateData);
 
                 \Log::info('Updated existing user during auto login', [
                     'zalo_gid' => $zaloGid,
@@ -337,6 +369,19 @@ class ZaloAuthController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation error during auto login', [
+                'zalo_gid' => $request->zalo_gid ?? 'unknown',
+                'errors' => $e->errors(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ',
+                'authenticated' => false,
+                'errors' => $e->errors()
+            ], 422);
+            
         } catch (\Exception $e) {
             \Log::error('Error during auto login', [
                 'zalo_gid' => $request->zalo_gid ?? 'unknown',
