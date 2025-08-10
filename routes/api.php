@@ -24,6 +24,7 @@ use App\Http\Controllers\MatchController;
 */
 
 // Public routes
+Route::post('/auth/login', [ZaloAuthController::class, 'login']);
 Route::post('/auth/zalo/auto-login', [ZaloAuthController::class, 'login']);
 Route::post('/auth/zalo/register', [ZaloAuthController::class, 'register']);
 Route::post('/auth/zalo/login-or-register', [ZaloAuthController::class, 'loginOrRegister']);
