@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withProviders([
+        Laravel\Sanctum\SanctumServiceProvider::class,
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         // Tắt CSRF cho API routes
         $middleware->validateCsrfTokens(except: [
@@ -24,8 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Đảm bảo API routes không bị redirect
         $middleware->preventRequestsDuringMaintenance();
         
+        // Đăng ký middleware aliases
         $middleware->alias([
             'api.auth' => ApiAuth::class,
+            'auth.sanctum' => \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

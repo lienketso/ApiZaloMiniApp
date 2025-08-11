@@ -72,7 +72,112 @@ Route::get('/test-auth', function (Request $request) {
             'status' => 'error'
         ], 500);
     }
-})->middleware('auth:sanctum');
+})->middleware(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class);
+
+// Test route đơn giản với auth:sanctum để debug
+Route::get('/test-simple-auth', function () {
+    return response()->json([
+        'message' => 'Simple protected route works!',
+        'timestamp' => now(),
+        'status' => 'success'
+    ]);
+})->middleware(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class);
+
+// Test route với middleware đơn giản hơn
+Route::get('/test-basic-auth', function () {
+    return response()->json([
+        'message' => 'Basic auth route works!',
+        'timestamp' => now(),
+        'status' => 'success'
+    ]);
+})->middleware('auth');
+
+// Test route với middleware auth:sanctum sử dụng cách khác
+Route::get('/test-sanctum-auth', function () {
+    return response()->json([
+        'message' => 'Sanctum auth route works!',
+        'timestamp' => now(),
+        'status' => 'success'
+    ]);
+})->middleware(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class);
+
+// Test route với middleware auth:sanctum sử dụng cách khác
+Route::get('/test-sanctum-auth-2', function () {
+    return response()->json([
+        'message' => 'Sanctum auth route 2 works!',
+        'timestamp' => now(),
+        'status' => 'success'
+    ]);
+})->middleware(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class);
+
+// Test routes không dùng Sanctum để debug
+Route::get('/test-no-auth', function () {
+    return response()->json([
+        'message' => 'No auth required - API is working!',
+        'timestamp' => now(),
+        'status' => 'success',
+        'test' => 'This route works without authentication'
+    ]);
+});
+
+// Test route để kiểm tra database connection
+Route::get('/test-db', function () {
+    try {
+        \DB::connection()->getPdo();
+        return response()->json([
+            'message' => 'Database connection successful',
+            'timestamp' => now(),
+            'status' => 'success',
+            'database' => \DB::connection()->getDatabaseName()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Database connection failed: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error'
+        ], 500);
+    }
+});
+
+// Test route để kiểm tra Member model
+Route::get('/test-members', function () {
+    try {
+        $members = \App\Models\Member::take(5)->get();
+        return response()->json([
+            'message' => 'Members query successful',
+            'timestamp' => now(),
+            'status' => 'success',
+            'count' => $members->count(),
+            'members' => $members
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Members query failed: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error'
+        ], 500);
+    }
+});
+
+// Test route để kiểm tra Club model
+Route::get('/test-clubs', function () {
+    try {
+        $clubs = \App\Models\Club::take(5)->get();
+        return response()->json([
+            'message' => 'Clubs query successful',
+            'timestamp' => now(),
+            'status' => 'success',
+            'count' => $clubs->count(),
+            'clubs' => $clubs
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Clubs query failed: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error'
+        ], 500);
+    }
+});
 
 // Public routes
 Route::get('/auth/check', function () {
@@ -87,7 +192,7 @@ Route::get('/auth/check', function () {
 Route::post('/auth/zalo/auto-login', [ZaloAuthController::class, 'autoLogin']);
 
 // Protected routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class)->group(function () {
     // Members
     Route::get('/members', [MemberController::class, 'index']);
     Route::post('/members', [MemberController::class, 'store']);
