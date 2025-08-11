@@ -62,9 +62,13 @@ class ClubController extends Controller
     public function getUserClubs()
     {
         try {
+            \Log::info('ClubController::getUserClubs - Starting...');
+            
             $userId = $this->getCurrentUserId();
+            \Log::info('ClubController::getUserClubs - Current user ID:', ['user_id' => $userId]);
 
             if (!$userId) {
+                \Log::warning('ClubController::getUserClubs - No user ID found');
                 return response()->json([
                     'success' => false,
                     'message' => 'User not authenticated'
@@ -76,17 +80,28 @@ class ClubController extends Controller
             }])->find($userId);
 
             if (!$user) {
+                \Log::warning('ClubController::getUserClubs - User not found', ['user_id' => $userId]);
                 return response()->json([
                     'success' => false,
                     'message' => 'User not found'
                 ], 404);
             }
 
+            \Log::info('ClubController::getUserClubs - User found', [
+                'user_id' => $userId,
+                'user_name' => $user->name,
+                'clubs_count' => $user->clubs->count()
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $user->clubs
             ]);
         } catch (\Exception $e) {
+            \Log::error('ClubController::getUserClubs - Error:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Error retrieving user clubs',
@@ -336,15 +351,22 @@ class ClubController extends Controller
      */
     private function getCurrentUserId()
     {
-        // Nếu user đã đăng nhập thực sự
-        if (Auth::check()) {
-            return Auth::id();
+        \Log::info('ClubController::getCurrentUserId - Starting...');
+        
+        // Nếu user đã đăng nhập thực sự với Sanctum
+        if (Auth::guard('sanctum')->check()) {
+            $userId = Auth::guard('sanctum')->id();
+            \Log::info('ClubController::getCurrentUserId - User authenticated with Sanctum', ['user_id' => $userId]);
+            return $userId;
         }
 
+        \Log::info('ClubController::getCurrentUserId - No Sanctum authentication, checking for mock user');
+        
         // Nếu đang sử dụng mock data, tìm hoặc tạo user mặc định
         $mockUser = User::where('email', 'dev@example.com')->first();
 
         if (!$mockUser) {
+            \Log::info('ClubController::getCurrentUserId - Creating mock user for development');
             // Tạo user mặc định cho development
             $mockUser = User::create([
                 'name' => 'Dev User',
@@ -353,6 +375,9 @@ class ClubController extends Controller
                 'zalo_gid' => 'dev_zalo_gid',
                 'role' => 'admin'
             ]);
+            \Log::info('ClubController::getCurrentUserId - Mock user created', ['user_id' => $mockUser->id]);
+        } else {
+            \Log::info('ClubController::getCurrentUserId - Mock user found', ['user_id' => $mockUser->id]);
         }
 
         return $mockUser->id;
