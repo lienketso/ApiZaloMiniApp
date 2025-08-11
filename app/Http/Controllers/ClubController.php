@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Club;
 use App\Models\User;
-use App\Models\Member;
-use App\Models\ClubMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -280,26 +278,6 @@ class ClubController extends Controller
                 // Lấy thông tin user để tạo member
                 $user = User::find($userId);
                 
-                // Create member từ thông tin user
-                $member = Member::create([
-                    'club_id' => $club->id,
-                    'name' => $user->name ?? 'Thành viên mới',
-                    'phone' => $user->phone ?? $request->phone ?? '0123456789',
-                    'email' => $user->email ?? $request->email ?? 'member@club.com',
-                    'avatar' => $user->avatar ?? null,
-                    'joined_date' => now()
-                ]);
-
-                // Liên kết user với club qua bảng club_member với role admin
-                ClubMember::create([
-                    'club_id' => $club->id,
-                    'member_id' => $userId,
-                    'role' => 'admin',
-                    'joined_date' => now(),
-                    'notes' => 'Club creator - Admin',
-                    'is_active' => true
-                ]);
-
                 // Create user_club relationship với admin role (để quản lý quyền sở hữu)
                 $club->users()->attach($userId, [
                     'role' => 'admin',
