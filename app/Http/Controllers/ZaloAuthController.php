@@ -181,7 +181,19 @@ class ZaloAuthController extends Controller
                 ];
             }
             
-            $totalAttendance = $user->attendances()->count();
+            // Lấy attendance count một cách an toàn
+            $totalAttendance = 0;
+            if ($member) {
+                try {
+                    $totalAttendance = $user->attendances()->count();
+                } catch (\Exception $e) {
+                    \Log::warning('Error counting attendances for user:', [
+                        'user_id' => $user->id,
+                        'error' => $e->getMessage()
+                    ]);
+                    $totalAttendance = 0;
+                }
+            }
             $attendanceRate = $totalEvents > 0 ? round(($totalAttendance / $totalEvents) * 100) : 0;
 
             return [
