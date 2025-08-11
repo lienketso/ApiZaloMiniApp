@@ -35,10 +35,21 @@ Route::get('/test', function () {
 // Test route để kiểm tra middleware auth:sanctum
 Route::get('/test-auth', function (Request $request) {
     try {
+        // Kiểm tra xem có token không
+        $token = $request->bearerToken();
+        if (!$token) {
+            return response()->json([
+                'message' => 'No token provided',
+                'timestamp' => now(),
+                'status' => 'error'
+            ], 401);
+        }
+        
+        // Kiểm tra xem token có hợp lệ không
         $user = $request->user();
         if (!$user) {
             return response()->json([
-                'message' => 'No user authenticated',
+                'message' => 'Invalid token',
                 'timestamp' => now(),
                 'status' => 'error'
             ], 401);
