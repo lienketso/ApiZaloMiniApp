@@ -274,7 +274,7 @@ class ZaloAuthController extends Controller
                 // Tạo user mới với thông tin từ ZMP SDK
                 $userData = [
                     'zalo_gid' => $zaloGid,
-                    'name' => 'Zalo User', // Tên mặc định, có thể cập nhật sau
+                    'name' => 'Zalo User ' . substr($zaloGid, -6), // Tên mặc định với 6 ký tự cuối của zalo_gid
                     'role' => 'Member',
                     'join_date' => now(),
                     'password' => Hash::make(Str::random(16)),
@@ -295,6 +295,17 @@ class ZaloAuthController extends Controller
                 }
             } else {
                 Log::info('ZaloAuthController::autoLogin - User found:', ['user_id' => $user->id]);
+                
+                // Cập nhật thông tin cơ bản nếu cần
+                $updateData = [];
+                if (empty($user->name) || $user->name === 'Zalo User') {
+                    $updateData['name'] = 'Zalo User ' . substr($zaloGid, -6);
+                }
+                
+                if (!empty($updateData)) {
+                    $user->update($updateData);
+                    Log::info('ZaloAuthController::autoLogin - User updated:', $updateData);
+                }
             }
 
             // Tạo token mới
