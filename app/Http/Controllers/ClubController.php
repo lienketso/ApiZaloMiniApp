@@ -49,6 +49,14 @@ class ClubController extends Controller
     }
 
     /**
+     * Store a new club (alias for setup)
+     */
+    public function store(Request $request)
+    {
+        return $this->setup($request);
+    }
+
+    /**
      * Get user's clubs (both as member and admin)
      */
     public function getUserClubs()
@@ -133,6 +141,14 @@ class ClubController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Show club by ID (alias for getClubInfo)
+     */
+    public function show($id)
+    {
+        return $this->getClubInfo($id);
     }
 
     /**
@@ -275,6 +291,47 @@ class ClubController extends Controller
     }
 
     /**
+     * Delete club
+     */
+    public function destroy($id)
+    {
+        try {
+            $userId = $this->getCurrentUserId();
+
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            $club = Club::where('created_by', $userId)->find($id);
+
+            if (!$club) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Club not found or you are not authorized to delete it'
+                ], 404);
+            }
+
+            // Delete club (this will also delete related records due to foreign key constraints)
+            $club->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Club deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting club',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get current user ID - handles both authenticated and mock data scenarios
      */
     private function getCurrentUserId()
@@ -323,10 +380,10 @@ class ClubController extends Controller
             $fileName = 'club_logo_' . time() . '.' . $file->getClientOriginalExtension();
 
             // Store in public/uploads/clubs directory
-            $path = $file->storeAs('public/uploads/clubs', $fileName);
+            $file->move(public_path('uploads/clubs'), $fileName);
 
             // Get the public URL
-            $url = Storage::url($path);
+            $url = '/uploads/clubs/' . $fileName;
 
             return response()->json([
                 'success' => true,

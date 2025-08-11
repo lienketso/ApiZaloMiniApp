@@ -207,6 +207,8 @@ Route::middleware(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStat
     // Clubs
     Route::get('/clubs', [ClubController::class, 'index']);
     Route::post('/clubs', [ClubController::class, 'store']);
+    Route::post('/club/setup', [ClubController::class, 'setup']);
+    Route::post('/club/upload-logo', [ClubController::class, 'uploadLogo']);
     Route::get('/clubs/user-clubs', [ClubController::class, 'getUserClubs']);
     Route::get('/clubs/{id}', [ClubController::class, 'show']);
     Route::put('/clubs/{id}', [ClubController::class, 'update']);
