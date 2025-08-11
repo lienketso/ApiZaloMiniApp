@@ -11,6 +11,7 @@ use App\Http\Controllers\FundTransactionController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubMemberController;
 use App\Http\Controllers\MatchController;
+use App\Http\Controllers\AuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -188,6 +189,9 @@ Route::get('/auth/check', function () {
     ]);
 });
 
+// Auth routes
+Route::post('/auth/login', [AuthController::class, 'login']);
+
 // Zalo Auth routes
 Route::post('/auth/zalo/auto-login', [ZaloAuthController::class, 'autoLogin']);
 
@@ -206,6 +210,7 @@ Route::middleware(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStat
     Route::get('/clubs/{id}', [ClubController::class, 'show']);
     Route::put('/clubs/{id}', [ClubController::class, 'update']);
     Route::delete('/clubs/{id}', [ClubController::class, 'destroy']);
+    Route::get('/clubs/user-clubs', [ClubController::class, 'getUserClubs']);
 
     // Club Members
     Route::get('/club-members', [ClubMemberController::class, 'index']);
@@ -220,6 +225,7 @@ Route::middleware(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStat
     Route::get('/events/{id}', [EventController::class, 'show']);
     Route::put('/events/{id}', [EventController::class, 'update']);
     Route::delete('/events/{id}', [EventController::class, 'destroy']);
+    Route::get('/events/{id}/attendance', [AttendanceController::class, 'getByEvent']);
 
     // Attendance
     Route::get('/attendance', [AttendanceController::class, 'index']);

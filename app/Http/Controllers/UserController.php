@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 class UserController extends Controller
 {
     /**
@@ -54,6 +55,38 @@ class UserController extends Controller
                 'total_attendance' => $totalAttendance,
                 'attendance_rate' => $attendanceRate,
             ]),
+        ]);
+    }
+
+    /**
+     * Đổi mật khẩu
+     */
+    public function changePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:8|confirmed',
+            'new_password_confirmation' => 'required|string|min:8',
+        ]);
+
+        $user = Auth::user();
+
+        // Kiểm tra mật khẩu hiện tại
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mật khẩu hiện tại không đúng'
+            ], 400);
+        }
+
+        // Cập nhật mật khẩu mới
+        $user->update([
+            'password' => Hash::make($validated['new_password'])
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mật khẩu đã được thay đổi thành công'
         ]);
     }
 }
