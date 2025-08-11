@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log; // Added Log facade
+
 class ZaloAuthController extends Controller
 {
     /**
@@ -249,22 +251,27 @@ class ZaloAuthController extends Controller
     }
 
     /**
-     * Auto login - Zalo Mini App đã xác thực user, chỉ cần lấy thông tin và tạo/cập nhật tài khoản
+     * Auto login - ZMP SDK đã xác thực user, chỉ cần lấy thông tin và tạo/cập nhật tài khoản
      */
     public function autoLogin(Request $request)
     {
         try {
+            Log::info('ZaloAuthController::autoLogin - Starting with data:', $request->all());
+            
             $request->validate([
                 'zalo_gid' => 'required|string',
             ]);
 
             $zaloGid = $request->zalo_gid;
+            Log::info('ZaloAuthController::autoLogin - Zalo GID:', ['zalo_gid' => $zaloGid]);
 
             // Tìm user theo Zalo GID
             $user = User::where('zalo_gid', $zaloGid)->first();
 
             if (!$user) {
-                // Tạo user mới với thông tin từ Zalo
+                Log::info('ZaloAuthController::autoLogin - User not found, creating new user');
+                
+                // Tạo user mới với thông tin từ ZMP SDK
                 $userData = [
                     'zalo_gid' => $zaloGid,
                     'name' => 'Zalo User', // Tên mặc định, có thể cập nhật sau
@@ -274,17 +281,31 @@ class ZaloAuthController extends Controller
                     'email' => 'zalo_' . $zaloGid . '@temp.com', // Email tạm thời
                 ];
                 
-                $user = User::create($userData);
+                Log::info('ZaloAuthController::autoLogin - Creating user with data:', $userData);
+                
+                try {
+                    $user = User::create($userData);
+                    Log::info('ZaloAuthController::autoLogin - User created successfully:', ['user_id' => $user->id]);
+                } catch (\Exception $createError) {
+                    Log::error('ZaloAuthController::autoLogin - Error creating user:', [
+                        'error' => $createError->getMessage(),
+                        'trace' => $createError->getTraceAsString()
+                    ]);
+                    throw $createError;
+                }
+            } else {
+                Log::info('ZaloAuthController::autoLogin - User found:', ['user_id' => $user->id]);
             }
 
             // Tạo token mới
             $user->tokens()->delete(); // Xóa token cũ
-            $newToken = $user->createToken('zalo-mini-app')->plainTextToken;
+            $newToken = $user->createToken('zmp-sdk')->plainTextToken;
+            Log::info('ZaloAuthController::autoLogin - Token created:', ['token_prefix' => substr($newToken, 0, 10) . '...']);
 
             // Tính toán stats
             $stats = $this->calculateUserStats($user);
 
-            return response()->json([
+            $response = [
                 'success' => true,
                 'message' => $user->wasRecentlyCreated ? 'Tài khoản mới được tạo và đăng nhập thành công' : 'Đăng nhập thành công',
                 'authenticated' => true,
@@ -293,9 +314,17 @@ class ZaloAuthController extends Controller
                     'token' => $newToken,
                     'user' => array_merge($user->toArray(), $stats)
                 ]
+            ];
+
+            Log::info('ZaloAuthController::autoLogin - Success response:', [
+                'is_new_user' => $user->wasRecentlyCreated,
+                'user_id' => $user->id
             ]);
 
+            return response()->json($response);
+
         } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('ZaloAuthController::autoLogin - Validation error:', $e->errors());
             return response()->json([
                 'success' => false,
                 'message' => 'Zalo GID không hợp lệ',
@@ -304,6 +333,10 @@ class ZaloAuthController extends Controller
             ], 422);
             
         } catch (\Exception $e) {
+            Log::error('ZaloAuthController::autoLogin - Unexpected error:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi trong quá trình đăng nhập tự động',
