@@ -64,26 +64,26 @@ class ClubController extends Controller
     /**
      * Get user's clubs (both as member and admin)
      */
-    public function getUserClubs()
+    public function getUserClubs(Request $request)
     {
         try {
             \Log::info('ClubController::getUserClubs - Starting...');
             
-            $userId = $this->getCurrentUserId();
-            \Log::info('ClubController::getUserClubs - Current user ID:', ['user_id' => $userId]);
+            // Lấy user_id từ request query hoặc body
+            $userId = $request->input('user_id') ?? $request->query('user_id') ?? $this->getCurrentUserId();
+            
+            \Log::info('ClubController::getUserClubs - User ID:', ['user_id' => $userId]);
 
             if (!$userId) {
                 \Log::warning('ClubController::getUserClubs - No user ID found');
                 return response()->json([
                     'success' => false,
-                    'message' => 'User not authenticated'
-                ], 401);
+                    'message' => 'User ID is required'
+                ], 400);
             }
 
-            $user = User::with(['clubs' => function($query) {
-                $query->orderBy('created_at', 'desc');
-            }])->find($userId);
-
+            // Kiểm tra user có tồn tại không
+            $user = User::find($userId);
             if (!$user) {
                 \Log::warning('ClubController::getUserClubs - User not found', ['user_id' => $userId]);
                 return response()->json([
@@ -92,16 +92,24 @@ class ClubController extends Controller
                 ], 404);
             }
 
-            \Log::info('ClubController::getUserClubs - User found', [
+            // Lấy clubs từ bảng user_clubs
+            $userClubs = UserClub::where('user_id', $userId)
+                ->where('is_active', true)
+                ->with(['club:id,name,sport,logo,address,is_setup,created_by,created_at,updated_at'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            \Log::info('ClubController::getUserClubs - User clubs query result:', [
                 'user_id' => $userId,
                 'user_name' => $user->name,
-                'clubs_count' => $user->clubs->count()
+                'user_clubs_count' => $userClubs->count(),
+                'user_clubs' => $userClubs->toArray()
             ]);
 
             // Luôn trả về danh sách clubs (có thể rỗng)
             return response()->json([
                 'success' => true,
-                'data' => $user->clubs
+                'data' => $userClubs
             ]);
             
         } catch (\Exception $e) {
