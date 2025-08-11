@@ -1,8 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\Member;
-use App\Models\ClubMember;
+use App\Models\User;
+use App\Models\UserClub;
 use App\Models\Club;
 use Illuminate\Http\Request;
 
@@ -10,49 +10,48 @@ class MemberController extends Controller
 {
     public function index()
     {
-        $members = Member::all();
-        return response()->json($members);
+        $users = User::with(['clubs'])->get();
+        return response()->json($users);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string|max:20',
             'avatar' => 'nullable|string',
             'role' => 'sometimes|in:admin,member,guest',
-            'status' => 'sometimes|in:active,inactive',
             'joined_date' => 'required|date',
             'club_id' => 'required|exists:clubs,id',
             'notes' => 'nullable|string'
         ]);
 
         try {
-            // Create the member
-            $memberData = [
+            // Create the user
+            $userData = [
                 'name' => $validated['name'],
+                'email' => $validated['email'],
                 'phone' => $validated['phone'] ?? null,
                 'avatar' => $validated['avatar'] ?? null,
-                'role' => $validated['role'] ?? 'member',
-                'status' => $validated['status'] ?? 'active',
-                'joined_date' => $validated['joined_date']
+                'password' => bcrypt('password123'), // Default password, user can change later
             ];
 
-            $member = Member::create($memberData);
+            $user = User::create($userData);
 
-            // Add member to club
-            $clubMember = ClubMember::create([
-//                'club_id' => $validated['club_id'],
-                'club_id' => 1,
-                'member_id' => $member->id,
+            // Add user to club
+            $userClub = UserClub::create([
+                'club_id' => $validated['club_id'],
+                'user_id' => $user->id,
                 'role' => $validated['role'] ?? 'member',
+                'joined_date' => $validated['joined_date'],
                 'notes' => $validated['notes'] ?? null,
                 'is_active' => true,
             ]);
 
             return response()->json([
                 'success' => true,
-                'data' => $member->load(['clubs']),
+                'data' => $user->load(['clubs']),
                 'message' => 'Thành viên đã được tạo thành công và thêm vào câu lạc bộ'
             ], 201);
 
@@ -64,43 +63,69 @@ class MemberController extends Controller
         }
     }
 
-    public function show(Member $member)
+    public function show(User $user)
     {
-        $member->load(['attendances.event']);
+        $user->load(['attendances.event', 'clubs']);
 
         return response()->json([
             'success' => true,
-            'data' => $member
+            'data' => $user
         ]);
     }
 
-    public function update(Request $request, Member $member)
+    public function update(Request $request, User $user)
     {
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|email|unique:members,email,' . $member->id,
+            'email' => 'sometimes|required|email|unique:users,email,' . $user->id,
             'phone' => 'nullable|string|max:20',
             'avatar' => 'nullable|string',
-            'role' => 'sometimes|in:admin,member,guest',
-            'status' => 'sometimes|in:active,inactive',
-            'joined_date' => 'sometimes|required|date'
         ]);
 
-        $member->update($validated);
+        $user->update($validated);
 
         return response()->json([
             'success' => true,
-            'data' => $member,
+            'data' => $user,
             'message' => 'Thành viên đã được cập nhật thành công'
         ]);
     }
 
-    public function destroy(Member $member)
+    public function destroy(User $user)
     {
-        $member->delete();
+        $user->delete();
         return response()->json([
             'success' => true,
             'message' => 'Thành viên đã được xóa thành công'
+        ]);
+    }
+
+    // Method để cập nhật role của user trong club
+    public function updateClubRole(Request $request, User $user, Club $club)
+    {
+        $validated = $request->validate([
+            'role' => 'required|in:admin,member,guest',
+            'notes' => 'nullable|string',
+            'is_active' => 'sometimes|boolean'
+        ]);
+
+        $userClub = UserClub::where('user_id', $user->id)
+            ->where('club_id', $club->id)
+            ->first();
+
+        if (!$userClub) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User không phải là thành viên của club này'
+            ], 404);
+        }
+
+        $userClub->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'data' => $userClub,
+            'message' => 'Role đã được cập nhật thành công'
         ]);
     }
 }

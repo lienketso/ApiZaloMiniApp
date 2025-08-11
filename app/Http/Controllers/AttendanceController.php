@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Event;
-use App\Models\Member;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
+
 class AttendanceController extends Controller
 {
     public function index(): JsonResponse
     {
-        $attendance = Attendance::with(['event', 'member'])->get();
+        $attendance = Attendance::with(['event', 'user'])->get();
 
         return response()->json([
             'success' => true,
@@ -23,14 +24,14 @@ class AttendanceController extends Controller
     {
         $validated = $request->validate([
             'event_id' => 'required|exists:events,id',
-            'member_id' => 'required|exists:members,id',
+            'user_id' => 'required|exists:users,id',
             'status' => 'required|in:present,absent,late',
             'notes' => 'nullable|string'
         ]);
 
         // Kiểm tra xem đã có attendance record chưa
         $existing = Attendance::where('event_id', $validated['event_id'])
-            ->where('member_id', $validated['member_id'])
+            ->where('user_id', $validated['user_id'])
             ->first();
 
         if ($existing) {
@@ -46,7 +47,7 @@ class AttendanceController extends Controller
             // Tạo record mới
             $attendance = Attendance::create([
                 'event_id' => $validated['event_id'],
-                'member_id' => $validated['member_id'],
+                'user_id' => $validated['user_id'],
                 'status' => $validated['status'],
                 'check_in_time' => $validated['status'] === 'present' ? now() : null,
                 'notes' => $validated['notes']
@@ -55,7 +56,7 @@ class AttendanceController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $attendance->load(['event', 'member']),
+            'data' => $attendance->load(['event', 'user']),
             'message' => 'Điểm danh thành công'
         ], 201);
     }
@@ -73,7 +74,7 @@ class AttendanceController extends Controller
         }
 
         // Load relationships explicitly
-        $attendance->load(['event', 'member']);
+        $attendance->load(['event', 'user']);
 
         return response()->json([
             'success' => true,
@@ -94,7 +95,7 @@ class AttendanceController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $attendance->load(['event', 'member']),
+            'data' => $attendance->load(['event', 'user']),
             'message' => 'Điểm danh đã được cập nhật thành công'
         ]);
     }
@@ -111,7 +112,7 @@ class AttendanceController extends Controller
 
     public function getByEvent(Event $event): JsonResponse
     {
-        $attendance = $event->attendances()->with('member')->get();
+        $attendance = $event->attendances()->with('user')->get();
 
         return response()->json([
             'success' => true,

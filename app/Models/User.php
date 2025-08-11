@@ -24,11 +24,10 @@ class User extends Authenticatable
         'phone',
         'password',
         'avatar',
-        'role',
-        'join_date',
-        'zalo_gid', // Thêm field này
-        'zalo_name',
-        'zalo_avatar',
+        'zalo_id',
+        'zalo_access_token',
+        'zalo_refresh_token',
+        'zalo_token_expires_at',
     ];
 
     /**
@@ -39,6 +38,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'zalo_access_token',
+        'zalo_refresh_token',
     ];
 
     /**
@@ -51,14 +52,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'join_date' => 'date',
+            'zalo_token_expires_at' => 'datetime',
         ];
-    }
-
-    // Relationship với Member (nếu cần)
-    public function member()
-    {
-        return $this->hasOne(Member::class);
     }
 
     // Relationship với Clubs thông qua user_clubs
@@ -75,17 +70,45 @@ class User extends Authenticatable
         return $this->hasMany(UserClub::class);
     }
 
-    // Relationship với Attendance thông qua Member
+    // Relationship trực tiếp với Attendance
     public function attendances()
     {
-        return $this->hasManyThrough(
-            Attendance::class,
-            Member::class,
-            'user_id', // Foreign key trên members table
-            'member_id', // Foreign key trên attendance table
-            'id', // Local key trên users table
-            'id' // Local key trên members table
-        );
+        return $this->hasMany(Attendance::class);
     }
 
+    // Relationship trực tiếp với Events
+    public function events()
+    {
+        return $this->hasMany(Event::class);
+    }
+
+    // Relationship trực tiếp với FundTransactions
+    public function fundTransactions()
+    {
+        return $this->hasMany(FundTransaction::class);
+    }
+
+    // Relationship trực tiếp với GameMatches
+    public function gameMatches()
+    {
+        return $this->hasMany(GameMatch::class);
+    }
+
+    // Helper method để kiểm tra user có phải là admin của club không
+    public function isClubAdmin(Club $club): bool
+    {
+        return $this->clubs()
+            ->where('club_id', $club->id)
+            ->wherePivot('role', 'admin')
+            ->exists();
+    }
+
+    // Helper method để kiểm tra user có phải là member của club không
+    public function isClubMember(Club $club): bool
+    {
+        return $this->clubs()
+            ->where('club_id', $club->id)
+            ->wherePivot('is_active', true)
+            ->exists();
+    }
 }

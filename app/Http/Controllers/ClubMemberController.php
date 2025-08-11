@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClubMember;
 use App\Models\Club;
-use App\Models\Member;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -17,7 +17,7 @@ class ClubMemberController extends Controller
     {
         $request->validate([
             'club_id' => 'required|exists:clubs,id',
-            'member_id' => 'required|exists:members,id',
+            'member_id' => 'required|exists:users,id',
             'role' => 'required|in:member,admin,guest',
             'joined_date' => 'nullable|date',
             'notes' => 'nullable|string',
@@ -48,7 +48,7 @@ class ClubMemberController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Thêm thành viên vào câu lạc bộ thành công',
-                'data' => $clubMember->load(['member', 'club'])
+                'data' => $clubMember->load(['user', 'club'])
             ]);
 
         } catch (\Exception $e) {
@@ -82,7 +82,7 @@ class ClubMemberController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Cập nhật thông tin thành viên thành công',
-                'data' => $clubMember->load(['member', 'club'])
+                'data' => $clubMember->load(['user', 'club'])
             ]);
 
         } catch (\Exception $e) {
@@ -122,7 +122,7 @@ class ClubMemberController extends Controller
     {
         try {
             $clubMembers = ClubMember::where('club_id', $clubId)
-                ->with(['member', 'club'])
+                ->with(['user', 'club'])
                 ->get();
 
             return response()->json([
@@ -145,7 +145,7 @@ class ClubMemberController extends Controller
     {
         try {
             $memberClubs = ClubMember::where('member_id', $memberId)
-                ->with(['member', 'club'])
+                ->with(['user', 'club'])
                 ->get();
 
             return response()->json([

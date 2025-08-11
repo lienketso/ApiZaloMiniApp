@@ -140,20 +140,20 @@ Route::get('/test-db', function () {
     }
 });
 
-// Test route để kiểm tra Member model
-Route::get('/test-members', function () {
+// Test route để kiểm tra User model
+Route::get('/test-users', function () {
     try {
-        $members = \App\Models\Member::take(5)->get();
+        $users = \App\Models\User::take(5)->get();
         return response()->json([
-            'message' => 'Members query successful',
+            'message' => 'Users query successful',
             'timestamp' => now(),
             'status' => 'success',
-            'count' => $members->count(),
-            'members' => $members
+            'count' => $users->count(),
+            'users' => $users
         ]);
     } catch (\Exception $e) {
         return response()->json([
-            'message' => 'Members query failed: ' . $e->getMessage(),
+            'message' => 'Users query failed: ' . $e->getMessage(),
             'timestamp' => now(),
             'status' => 'error'
         ], 500);
@@ -197,20 +197,20 @@ Route::get('/test-club-controller', function () {
     }
 });
 
-// Test route để kiểm tra Member model
-Route::get('/test-member-model', function () {
+// Test route để kiểm tra User model
+Route::get('/test-user-model', function () {
     try {
-        $members = \App\Models\Member::take(3)->get();
+        $users = \App\Models\User::take(3)->get();
         return response()->json([
-            'message' => 'Member model test successful',
+            'message' => 'User model test successful',
             'timestamp' => now(),
             'status' => 'success',
-            'count' => $members->count(),
-            'members' => $members
+            'count' => $users->count(),
+            'users' => $users
         ]);
     } catch (\Exception $e) {
         return response()->json([
-            'message' => 'Member model test failed: ' . $e->getMessage(),
+            'message' => 'User model test failed: ' . $e->getMessage(),
             'timestamp' => now(),
             'status' => 'error'
         ], 500);

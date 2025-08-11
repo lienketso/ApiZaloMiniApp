@@ -11,7 +11,7 @@ class Attendance extends Model
 
     protected $fillable = [
         'event_id',
-        'member_id',
+        'user_id',
         'status',
         'check_in_time',
         'check_out_time',
@@ -29,9 +29,9 @@ class Attendance extends Model
         return $this->belongsTo(Event::class);
     }
 
-    public function member()
+    public function user()
     {
-        return $this->belongsTo(Member::class);
+        return $this->belongsTo(User::class);
     }
 
     // Scopes

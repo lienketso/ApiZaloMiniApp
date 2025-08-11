@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\GameMatch;
 use App\Models\Team;
-use App\Models\Member;
+use App\Models\User;
 use App\Models\Club;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -478,15 +478,17 @@ class MatchController extends Controller
                 ], 400);
             }
 
-            $members = Member::where('club_id', $clubId)
-                ->select('id', 'name', 'avatar', 'role')
+            $members = User::whereHas('clubs', function($query) use ($clubId) {
+                    $query->where('club_id', $clubId);
+                })
+                ->select('id', 'name', 'avatar')
                 ->get()
-                ->map(function ($member) {
+                ->map(function ($user) {
                     return [
-                        'id' => $member->id,
-                        'name' => $member->name,
-                        'avatar' => $member->avatar,
-                        'role' => $member->role
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'avatar' => $user->avatar,
+                        'role' => $user->clubs->first()->pivot->role ?? 'member'
                     ];
                 });
 

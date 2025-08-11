@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Models\Member;
+
 class Event extends Model
 {
     use HasFactory;
@@ -25,6 +25,7 @@ class Event extends Model
         'start_date' => 'datetime',
         'end_date' => 'datetime',
     ];
+    
     // Relationships
     public function club()
     {
@@ -36,9 +37,9 @@ class Event extends Model
         return $this->hasMany(Attendance::class);
     }
 
-    public function members()
+    public function users()
     {
-        return $this->belongsToMany(Member::class, 'attendance');
+        return $this->belongsToMany(User::class, 'attendance');
     }
 
     // Scopes
@@ -79,6 +80,4 @@ class Event extends Model
             'present_rate' => $total > 0 ? round(($present / $total) * 100, 2) : 0
         ];
     }
-
-
 }

@@ -30,7 +30,7 @@ class Team extends Model
 
     public function players(): BelongsToMany
     {
-        return $this->belongsToMany(Member::class, 'team_players', 'team_id', 'member_id');
+        return $this->belongsToMany(User::class, 'team_players', 'team_id', 'member_id');
     }
 
     // Scopes

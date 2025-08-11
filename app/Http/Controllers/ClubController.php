@@ -275,10 +275,10 @@ class ClubController extends Controller
                     'joined_date' => now()
                 ]);
 
-                // Liên kết member với club qua bảng club_member với role admin
+                // Liên kết user với club qua bảng club_member với role admin
                 ClubMember::create([
                     'club_id' => $club->id,
-                    'member_id' => $member->id,
+                    'member_id' => $userId,
                     'role' => 'admin',
                     'joined_date' => now(),
                     'notes' => 'Club creator - Admin',
@@ -508,7 +508,7 @@ class ClubController extends Controller
     {
         try {
             // Tìm hoặc tạo user mặc định cho development
-            $mockUser = User::where('zalo_gid', 'test_zalo_456')->first();
+            $mockUser = User::where('zalo_gid', '5170627724267093288')->first();
 
             if (!$mockUser) {
                 // Tạo user mặc định cho development
