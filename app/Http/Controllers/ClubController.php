@@ -543,8 +543,8 @@ class ClubController extends Controller
                 ->toArray();
 
             // Phân loại câu lạc bộ
-            $joinedClubs = $allClubs->whereIn('id', $userJoinedClubIds);
-            $availableClubs = $allClubs->whereNotIn('id', $userJoinedClubIds);
+            $joinedClubs = $allClubs->whereIn('id', $userJoinedClubIds)->values(); // Thêm values() để chuyển thành array
+            $availableClubs = $allClubs->whereNotIn('id', $userJoinedClubIds)->values(); // Thêm values() để chuyển thành array
 
             return response()->json([
                 'success' => true,
