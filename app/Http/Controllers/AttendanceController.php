@@ -60,8 +60,19 @@ class AttendanceController extends Controller
         ], 201);
     }
 
-    public function show(Attendance $attendance): JsonResponse
+    public function show($id): JsonResponse
     {
+        // Find attendance by ID instead of using route model binding
+        $attendance = Attendance::find($id);
+        
+        if (!$attendance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attendance not found'
+            ], 404);
+        }
+
+        // Load relationships explicitly
         $attendance->load(['event', 'member']);
 
         return response()->json([
