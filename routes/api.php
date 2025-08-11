@@ -34,12 +34,33 @@ Route::get('/test', function () {
 
 // Test route để kiểm tra middleware auth:sanctum
 Route::get('/test-auth', function (Request $request) {
-    return response()->json([
-        'message' => 'Protected route accessed successfully!',
-        'user' => $request->user(),
-        'timestamp' => now(),
-        'status' => 'success'
-    ]);
+    try {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'message' => 'No user authenticated',
+                'timestamp' => now(),
+                'status' => 'error'
+            ], 401);
+        }
+        
+        return response()->json([
+            'message' => 'Protected route accessed successfully!',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
+            ],
+            'timestamp' => now(),
+            'status' => 'success'
+        ]);
+    } catch (Exception $e) {
+        return response()->json([
+            'message' => 'Error in protected route: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error'
+        ], 500);
+    }
 })->middleware('auth:sanctum');
 
 // Public routes
