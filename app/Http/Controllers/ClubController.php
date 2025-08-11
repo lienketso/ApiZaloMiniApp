@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Club;
 use App\Models\User;
+use App\Models\Member;
+use App\Models\ClubMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class ClubController extends Controller
 {
@@ -238,29 +241,65 @@ class ClubController extends Controller
                 ], 401);
             }
 
-            // Create new club
-            $club = Club::create([
-                'name' => $request->name,
-                'sport' => $request->sport,
-                'logo' => $request->logo,
-                'address' => $request->address,
-                'phone' => $request->phone,
-                'email' => $request->email,
-                'description' => $request->description,
-                'bank_name' => $request->bank_name,
-                'account_name' => $request->account_name,
-                'account_number' => $request->account_number,
-                'is_setup' => true,
-                'created_by' => $userId
-            ]);
+            // Bắt đầu transaction để đảm bảo tính nhất quán
+            DB::beginTransaction();
+            
+            try {
+                // Create new club
+                $club = Club::create([
+                    'name' => $request->name,
+                    'sport' => $request->sport,
+                    'logo' => $request->logo,
+                    'address' => $request->address,
+                    'phone' => $request->phone,
+                    'email' => $request->email,
+                    'description' => $request->description,
+                    'bank_name' => $request->bank_name,
+                    'account_name' => $request->account_name,
+                    'account_number' => $request->account_number,
+                    'is_setup' => true,
+                    'created_by' => $userId
+                ]);
 
-            // Create user_club relationship with admin role
-            $club->users()->attach($userId, [
-                'role' => 'admin',
-                'joined_date' => now(),
-                'notes' => 'Club creator',
-                'is_active' => true
-            ]);
+                // Lấy thông tin user để tạo member
+                $user = User::find($userId);
+                
+                // Create member từ thông tin user
+                $member = Member::create([
+                    'club_id' => $club->id,
+                    'name' => $user->name ?? 'Thành viên mới',
+                    'phone' => $user->phone ?? $request->phone,
+                    'email' => $user->email ?? $request->email,
+                    'avatar' => $user->avatar ?? null,
+                    'joined_date' => now()
+                ]);
+
+                // Liên kết member với club qua bảng club_member với role admin
+                ClubMember::create([
+                    'club_id' => $club->id,
+                    'member_id' => $member->id,
+                    'role' => 'admin',
+                    'joined_date' => now(),
+                    'notes' => 'Club creator - Admin',
+                    'is_active' => true
+                ]);
+
+                // Create user_club relationship với admin role (để quản lý quyền sở hữu)
+                $club->users()->attach($userId, [
+                    'role' => 'admin',
+                    'joined_date' => now(),
+                    'notes' => 'Club owner',
+                    'is_active' => true
+                ]);
+
+                // Commit transaction
+                DB::commit();
+                
+            } catch (\Exception $e) {
+                // Rollback nếu có lỗi
+                DB::rollback();
+                throw $e;
+            }
 
             return response()->json([
                 'success' => true,
