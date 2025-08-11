@@ -23,66 +23,89 @@ use App\Http\Controllers\MatchController;
 |
 */
 
-// Public routes
+// Test route để kiểm tra API
 Route::get('/test', function () {
     return response()->json([
-        'success' => true,
         'message' => 'API is working!',
-        'timestamp' => now()
+        'timestamp' => now(),
+        'status' => 'success'
     ]);
 });
 
-// Zalo Auth routes (public)
-Route::post('/auth/zalo/login', [ZaloAuthController::class, 'login']);
-Route::post('/auth/zalo/auto-login', [ZaloAuthController::class, 'autoLogin']);
-Route::post('/auth/zalo/register', [ZaloAuthController::class, 'register']);
-Route::post('/auth/zalo/login-or-register', [ZaloAuthController::class, 'loginOrRegister']);
+// Test route để kiểm tra middleware auth:sanctum
+Route::get('/test-auth', function (Request $request) {
+    return response()->json([
+        'message' => 'Protected route accessed successfully!',
+        'user' => $request->user(),
+        'timestamp' => now(),
+        'status' => 'success'
+    ]);
+})->middleware('auth:sanctum');
 
-// Check auth route (public)
-Route::get('/auth/check', [ZaloAuthController::class, 'checkAuth']);
+// Public routes
+Route::get('/auth/check', function () {
+    return response()->json([
+        'message' => 'Auth check endpoint',
+        'timestamp' => now(),
+        'status' => 'success'
+    ]);
+});
+
+// Zalo Auth routes
+Route::post('/auth/zalo/auto-login', [ZaloAuthController::class, 'autoLogin']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
-    // Auth
-    Route::post('/auth/logout', [ZaloAuthController::class, 'logout']);
-    Route::get('/auth/profile', [UserController::class, 'profile']);
-    Route::put('/auth/profile', [UserController::class, 'updateProfile']);
-    
-    // Member
-    Route::apiResource('members', MemberController::class);
+    // Members
+    Route::get('/members', [MemberController::class, 'index']);
+    Route::post('/members', [MemberController::class, 'store']);
+    Route::get('/members/{id}', [MemberController::class, 'show']);
+    Route::put('/members/{id}', [MemberController::class, 'update']);
+    Route::delete('/members/{id}', [MemberController::class, 'destroy']);
+
+    // Clubs
+    Route::get('/clubs', [ClubController::class, 'index']);
+    Route::post('/clubs', [ClubController::class, 'store']);
+    Route::get('/clubs/{id}', [ClubController::class, 'show']);
+    Route::put('/clubs/{id}', [ClubController::class, 'update']);
+    Route::delete('/clubs/{id}', [ClubController::class, 'destroy']);
+
+    // Club Members
+    Route::get('/club-members', [ClubMemberController::class, 'index']);
+    Route::post('/club-members', [ClubMemberController::class, 'store']);
+    Route::get('/club-members/{id}', [ClubMemberController::class, 'show']);
+    Route::put('/club-members/{id}', [ClubMemberController::class, 'update']);
+    Route::delete('/club-members/{id}', [ClubMemberController::class, 'destroy']);
 
     // Events
-    Route::apiResource('events', EventController::class);
+    Route::get('/events', [EventController::class, 'index']);
+    Route::post('/events', [EventController::class, 'store']);
+    Route::get('/events/{id}', [EventController::class, 'show']);
+    Route::put('/events/{id}', [EventController::class, 'update']);
+    Route::delete('/events/{id}', [EventController::class, 'destroy']);
 
     // Attendance
-    Route::apiResource('attendance', AttendanceController::class);
-    Route::get('attendance/event/{event}', [AttendanceController::class, 'getByEvent']);
-    
-    // Fund
-    Route::apiResource('fund-transactions', FundTransactionController::class);
-    Route::get('fund-stats', [FundTransactionController::class, 'getFundStats']);
-    
-    // Club
-    Route::get('/club', [ClubController::class, 'index']);
-    Route::get('/club/user-clubs', [ClubController::class, 'getUserClubs']);
-    Route::post('/club/setup', [ClubController::class, 'setup']);
-    Route::put('/club', [ClubController::class, 'update']);
+    Route::get('/attendance', [AttendanceController::class, 'index']);
+    Route::post('/attendance', [AttendanceController::class, 'store']);
+    Route::get('/attendance/{id}', [AttendanceController::class, 'show']);
+    Route::put('/attendance/{id}', [AttendanceController::class, 'update']);
+    Route::delete('/attendance/{id}', [AttendanceController::class, 'destroy']);
 
-    // Club Member
-    Route::post('/club-members', [ClubMemberController::class, 'addMemberToClub']);
-    Route::put('/club-members/{id}', [ClubMemberController::class, 'updateMemberRole']);
-    Route::delete('/club-members/{id}', [ClubMemberController::class, 'removeMemberFromClub']);
-    Route::get('/club-members/club/{clubId}', [ClubMemberController::class, 'getClubMembers']);
-    Route::get('/club-members/member/{memberId}', [ClubMemberController::class, 'getMemberClubs']);
-    Route::get('/club-members/roles', [ClubMemberController::class, 'getRoleOptions']);
+    // Fund Transactions
+    Route::get('/fund-transactions', [FundTransactionController::class, 'index']);
+    Route::post('/fund-transactions', [FundTransactionController::class, 'store']);
+    Route::get('/fund-transactions/{id}', [FundTransactionController::class, 'show']);
+    Route::put('/fund-transactions/{id}', [FundTransactionController::class, 'update']);
+    Route::delete('/fund-transactions/{id}', [FundTransactionController::class, 'destroy']);
 
     // Matches
     Route::get('/matches', [MatchController::class, 'index']);
     Route::post('/matches', [MatchController::class, 'store']);
+    Route::get('/matches/{id}', [MatchController::class, 'show']);
     Route::put('/matches/{id}', [MatchController::class, 'update']);
     Route::delete('/matches/{id}', [MatchController::class, 'destroy']);
-    Route::put('/matches/{id}/teams', [MatchController::class, 'updateTeams']);
-    Route::post('/matches/{id}/start', [MatchController::class, 'startMatch']);
-    Route::put('/matches/{id}/result', [MatchController::class, 'updateResult']);
-    Route::get('/matches/members', [MatchController::class, 'getClubMembers']);
+
+    // User profile
+    Route::get('/user/profile', [UserController::class, 'profile']);
+    Route::put('/user/profile', [UserController::class, 'updateProfile']);
 });
