@@ -440,16 +440,17 @@ class ClubController extends Controller
     /**
      * Check club status for current user
      */
-    public function checkClubStatus()
+    public function checkClubStatus(Request $request)
     {
         try {
-            $userId = $this->getCurrentUserId();
-
+            // Lấy user_id từ request query hoặc body
+            $userId = $request->input('user_id') ?? $request->query('user_id') ?? $this->getCurrentUserId();
+            
             if (!$userId) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User not authenticated'
-                ], 401);
+                    'message' => 'User ID is required'
+                ], 400);
             }
 
             // Kiểm tra từ bảng user_clubs
@@ -507,10 +508,17 @@ class ClubController extends Controller
     public function test()
     {
         try {
+            $userId = $this->getCurrentUserId();
+            
             return response()->json([
                 'success' => true,
                 'message' => 'ClubController test method working',
-                'timestamp' => now()
+                'timestamp' => now(),
+                'debug' => [
+                    'current_user_id' => $userId,
+                    'user_exists' => $userId ? User::find($userId) ? true : false : false,
+                    'user_clubs_count' => $userId ? UserClub::where('user_id', $userId)->where('is_active', true)->count() : 0
+                ]
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -524,16 +532,17 @@ class ClubController extends Controller
     /**
      * Get all available clubs that user can join
      */
-    public function getAvailableClubs()
+    public function getAvailableClubs(Request $request)
     {
         try {
-            $userId = $this->getCurrentUserId();
-
+            // Lấy user_id từ request query hoặc body
+            $userId = $request->input('user_id') ?? $request->query('user_id') ?? $this->getCurrentUserId();
+            
             if (!$userId) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User not authenticated'
-                ], 401);
+                    'message' => 'User ID is required'
+                ], 400);
             }
 
             // Lấy danh sách tất cả câu lạc bộ
