@@ -197,6 +197,9 @@ Route::post('/auth/zalo/auto-login', [ZaloAuthController::class, 'autoLogin']);
 
 // Protected routes
 Route::middleware(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class)->group(function () {
+    // Zalo Auth protected routes
+    Route::post('/auth/zalo/update-info', [ZaloAuthController::class, 'updateZaloInfo']);
+    
     // Members
     Route::get('/members', [MemberController::class, 'index']);
     Route::post('/members', [MemberController::class, 'store']);

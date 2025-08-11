@@ -249,17 +249,13 @@ class ZaloAuthController extends Controller
     }
 
     /**
-     * Auto login - kiểm tra và tạo tài khoản mới nếu chưa có
+     * Auto login - Zalo Mini App đã xác thực user, chỉ cần lấy thông tin và tạo/cập nhật tài khoản
      */
     public function autoLogin(Request $request)
     {
         try {
             $request->validate([
                 'zalo_gid' => 'required|string',
-                'name' => 'required|string|max:255',
-                'phone' => 'nullable|string|max:20',
-                'zalo_name' => 'nullable|string|max:255',
-                'zalo_avatar' => 'nullable|url|max:500',
             ]);
 
             $zaloGid = $request->zalo_gid;
@@ -268,45 +264,17 @@ class ZaloAuthController extends Controller
             $user = User::where('zalo_gid', $zaloGid)->first();
 
             if (!$user) {
-                // Tạo user mới nếu chưa tồn tại
+                // Tạo user mới với thông tin từ Zalo
                 $userData = [
-                    'name' => $request->name,
-                    'phone' => $request->phone ?? null,
                     'zalo_gid' => $zaloGid,
-                    'zalo_name' => $request->zalo_name ?? $request->name, // Sử dụng zalo_name nếu có, không thì dùng name
-                    'zalo_avatar' => $request->zalo_avatar ?? null,
+                    'name' => 'Zalo User', // Tên mặc định, có thể cập nhật sau
                     'role' => 'Member',
                     'join_date' => now(),
                     'password' => Hash::make(Str::random(16)),
-                    'email' => 'zalo_' . $zaloGid . '@temp.com', // Email tạm thời bắt buộc
+                    'email' => 'zalo_' . $zaloGid . '@temp.com', // Email tạm thời
                 ];
                 
-                try {
-                    // Tạo user mới
-                    $user = User::create($userData);
-                } catch (\Exception $createError) {
-                    throw $createError;
-                }
-            } else {
-                // Cập nhật thông tin nếu user đã tồn tại
-                $updateData = [
-                    'name' => $request->name,
-                ];
-                
-                // Chỉ cập nhật các trường có giá trị
-                if ($request->has('zalo_name') && !empty($request->zalo_name)) {
-                    $updateData['zalo_name'] = $request->zalo_name;
-                }
-                
-                if ($request->has('zalo_avatar') && !empty($request->zalo_avatar)) {
-                    $updateData['zalo_avatar'] = $request->zalo_avatar;
-                }
-                
-                if ($request->has('phone') && !empty($request->phone)) {
-                    $updateData['phone'] = $request->phone;
-                }
-                
-                $user->update($updateData);
+                $user = User::create($userData);
             }
 
             // Tạo token mới
@@ -330,7 +298,7 @@ class ZaloAuthController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Dữ liệu không hợp lệ',
+                'message' => 'Zalo GID không hợp lệ',
                 'authenticated' => false,
                 'errors' => $e->errors()
             ], 422);
@@ -340,6 +308,73 @@ class ZaloAuthController extends Controller
                 'success' => false,
                 'message' => 'Lỗi trong quá trình đăng nhập tự động',
                 'authenticated' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Cập nhật thông tin user từ Zalo (sau khi đã đăng nhập)
+     */
+    public function updateZaloInfo(Request $request)
+    {
+        try {
+            $request->validate([
+                'zalo_name' => 'nullable|string|max:255',
+                'zalo_avatar' => 'nullable|url|max:500',
+                'name' => 'nullable|string|max:255',
+                'phone' => 'nullable|string|max:20',
+            ]);
+
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User chưa đăng nhập',
+                ], 401);
+            }
+
+            $updateData = [];
+            
+            // Chỉ cập nhật các trường có giá trị
+            if ($request->has('zalo_name') && !empty($request->zalo_name)) {
+                $updateData['zalo_name'] = $request->zalo_name;
+            }
+            
+            if ($request->has('zalo_avatar') && !empty($request->zalo_avatar)) {
+                $updateData['zalo_avatar'] = $request->zalo_avatar;
+            }
+            
+            if ($request->has('name') && !empty($request->name)) {
+                $updateData['name'] = $request->name;
+            }
+            
+            if ($request->has('phone') && !empty($request->phone)) {
+                $updateData['phone'] = $request->phone;
+            }
+
+            if (!empty($updateData)) {
+                $user->update($updateData);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cập nhật thông tin thành công',
+                'data' => $user->fresh()->toArray()
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $e->errors()
+            ], 422);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi trong quá trình cập nhật thông tin',
                 'error' => $e->getMessage()
             ], 500);
         }
