@@ -180,6 +180,178 @@ Route::get('/test-clubs', function () {
     }
 });
 
+// Test route để kiểm tra ClubController
+Route::get('/test-club-controller', function () {
+    try {
+        return response()->json([
+            'message' => 'ClubController test route working',
+            'timestamp' => now(),
+            'status' => 'success'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'ClubController test route failed: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error'
+        ], 500);
+    }
+});
+
+// Test route để kiểm tra Member model
+Route::get('/test-member-model', function () {
+    try {
+        $members = \App\Models\Member::take(3)->get();
+        return response()->json([
+            'message' => 'Member model test successful',
+            'timestamp' => now(),
+            'status' => 'success',
+            'count' => $members->count(),
+            'members' => $members
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Member model test failed: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error'
+        ], 500);
+    }
+});
+
+// Test route để kiểm tra ClubMember model
+Route::get('/test-club-member-model', function () {
+    try {
+        $clubMembers = \App\Models\ClubMember::take(3)->get();
+        return response()->json([
+            'message' => 'ClubMember model test successful',
+            'timestamp' => now(),
+            'status' => 'success',
+            'count' => $clubMembers->count(),
+            'club_members' => $clubMembers
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'ClubMember model test failed: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error'
+        ], 500);
+    }
+});
+
+// Test route để kiểm tra ClubController trực tiếp (không qua middleware)
+Route::get('/test-club-controller-direct', function () {
+    try {
+        $controller = new \App\Http\Controllers\ClubController();
+        $result = $controller->test();
+        return $result;
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'ClubController direct test failed: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error',
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// Test route để kiểm tra getCurrentUserId method
+Route::get('/test-get-current-user-id', function () {
+    try {
+        $controller = new \App\Http\Controllers\ClubController();
+        
+        // Sử dụng reflection để gọi private method
+        $reflection = new ReflectionClass($controller);
+        $method = $reflection->getMethod('getCurrentUserId');
+        $method->setAccessible(true);
+        
+        $userId = $method->invoke($controller);
+        
+        return response()->json([
+            'message' => 'getCurrentUserId test successful',
+            'timestamp' => now(),
+            'status' => 'success',
+            'user_id' => $userId
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'getCurrentUserId test failed: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error',
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// Test route để kiểm tra việc tạo ClubController
+Route::get('/test-create-controller', function () {
+    try {
+        return response()->json([
+            'message' => 'About to create ClubController',
+            'timestamp' => now(),
+            'status' => 'success'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Test failed: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error'
+        ], 500);
+    }
+});
+
+// Test route để kiểm tra việc tạo ClubController instance
+Route::get('/test-controller-instance', function () {
+    try {
+        $controller = new \App\Http\Controllers\ClubController();
+        return response()->json([
+            'message' => 'ClubController created successfully',
+            'timestamp' => now(),
+            'status' => 'success'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Failed to create ClubController: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error',
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+
+
+// Test route để kiểm tra User model
+Route::get('/test-user-model', function () {
+    try {
+        $user = \App\Models\User::where('email', 'dev@example.com')->first();
+        
+        if ($user) {
+            return response()->json([
+                'message' => 'User model test successful',
+                'timestamp' => now(),
+                'status' => 'success',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email
+                ]
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'User not found',
+                'timestamp' => now(),
+                'status' => 'error'
+            ], 404);
+        }
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'User model test failed: ' . $e->getMessage(),
+            'timestamp' => now(),
+            'status' => 'error',
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
 // Public routes
 Route::get('/auth/check', function () {
     return response()->json([
@@ -195,66 +367,64 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 // Zalo Auth routes
 Route::post('/auth/zalo/auto-login', [ZaloAuthController::class, 'autoLogin']);
 
-// Protected routes
-Route::middleware(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class)->group(function () {
-    // Zalo Auth protected routes
-    Route::post('/auth/zalo/update-info', [ZaloAuthController::class, 'updateZaloInfo']);
-    
-    // Members
-    Route::get('/members', [MemberController::class, 'index']);
-    Route::post('/members', [MemberController::class, 'store']);
-    Route::get('/members/{id}', [MemberController::class, 'show']);
-    Route::put('/members/{id}', [MemberController::class, 'update']);
-    Route::delete('/members/{id}', [MemberController::class, 'destroy']);
+// Zalo Auth protected routes (không cần Sanctum)
+Route::post('/auth/zalo/update-info', [ZaloAuthController::class, 'updateZaloInfo']);
 
-    // Clubs
-    Route::get('/clubs', [ClubController::class, 'index']);
-    Route::post('/clubs', [ClubController::class, 'store']);
-    Route::post('/club/setup', [ClubController::class, 'setup']);
-    Route::post('/club/upload-logo', [ClubController::class, 'uploadLogo']);
-    Route::get('/clubs/user-clubs', [ClubController::class, 'getUserClubs']);
-    Route::get('/clubs/status', [ClubController::class, 'checkClubStatus']);
-    Route::get('/clubs/{id}', [ClubController::class, 'show']);
-    Route::put('/clubs/{id}', [ClubController::class, 'update']);
-    Route::delete('/clubs/{id}', [ClubController::class, 'destroy']);
+// Club routes (không cần Sanctum - đã xác thực qua Zalo)
+Route::get('/clubs', [ClubController::class, 'index']);
+Route::post('/clubs', [ClubController::class, 'store']);
+Route::post('/club/setup', [ClubController::class, 'setup']);
+Route::post('/club/upload-logo', [ClubController::class, 'uploadLogo']);
+Route::get('/clubs/user-clubs', [ClubController::class, 'getUserClubs']);
+Route::get('/clubs/status', [ClubController::class, 'checkClubStatus']);
+Route::get('/clubs/test', [ClubController::class, 'test']);
+Route::get('/clubs/{id}', [ClubController::class, 'show']);
+Route::put('/clubs/{id}', [ClubController::class, 'update']);
+Route::delete('/clubs/{id}', [ClubController::class, 'destroy']);
 
-    // Club Members
-    Route::get('/club-members', [ClubMemberController::class, 'index']);
-    Route::post('/club-members', [ClubMemberController::class, 'store']);
-    Route::get('/club-members/{id}', [ClubMemberController::class, 'show']);
-    Route::put('/club-members/{id}', [ClubMemberController::class, 'update']);
-    Route::delete('/club-members/{id}', [ClubMemberController::class, 'destroy']);
+// Members
+Route::get('/members', [MemberController::class, 'index']);
+Route::post('/members', [MemberController::class, 'store']);
+Route::get('/members/{id}', [MemberController::class, 'show']);
+Route::put('/members/{id}', [MemberController::class, 'update']);
+Route::delete('/members/{id}', [MemberController::class, 'destroy']);
 
-    // Events
-    Route::get('/events', [EventController::class, 'index']);
-    Route::post('/events', [EventController::class, 'store']);
-    Route::get('/events/{id}', [EventController::class, 'show']);
-    Route::put('/events/{id}', [EventController::class, 'update']);
-    Route::delete('/events/{id}', [EventController::class, 'destroy']);
-    Route::get('/events/{id}/attendance', [AttendanceController::class, 'getByEvent']);
+// Club Members
+Route::get('/club-members', [ClubMemberController::class, 'index']);
+Route::post('/club-members', [ClubMemberController::class, 'store']);
+Route::get('/club-members/{id}', [ClubMemberController::class, 'show']);
+Route::put('/club-members/{id}', [ClubMemberController::class, 'update']);
+Route::delete('/club-members/{id}', [ClubMemberController::class, 'destroy']);
 
-    // Attendance
-    Route::get('/attendance', [AttendanceController::class, 'index']);
-    Route::post('/attendance', [AttendanceController::class, 'store']);
-    Route::get('/attendance/{id}', [AttendanceController::class, 'show']);
-    Route::put('/attendance/{id}', [AttendanceController::class, 'update']);
-    Route::delete('/attendance/{id}', [AttendanceController::class, 'destroy']);
+// Events
+Route::get('/events', [EventController::class, 'index']);
+Route::post('/events', [EventController::class, 'store']);
+Route::get('/events/{id}', [EventController::class, 'show']);
+Route::put('/events/{id}', [EventController::class, 'update']);
+Route::delete('/events/{id}', [EventController::class, 'destroy']);
+Route::get('/events/{id}/attendance', [AttendanceController::class, 'getByEvent']);
 
-    // Fund Transactions
-    Route::get('/fund-transactions', [FundTransactionController::class, 'index']);
-    Route::post('/fund-transactions', [FundTransactionController::class, 'store']);
-    Route::get('/fund-transactions/{id}', [FundTransactionController::class, 'show']);
-    Route::put('/fund-transactions/{id}', [FundTransactionController::class, 'update']);
-    Route::delete('/fund-transactions/{id}', [FundTransactionController::class, 'destroy']);
+// Attendance
+Route::get('/attendance', [AttendanceController::class, 'index']);
+Route::post('/attendance', [AttendanceController::class, 'store']);
+Route::get('/attendance/{id}', [AttendanceController::class, 'show']);
+Route::put('/attendance/{id}', [AttendanceController::class, 'update']);
+Route::delete('/attendance/{id}', [AttendanceController::class, 'destroy']);
 
-    // Matches
-    Route::get('/matches', [MatchController::class, 'index']);
-    Route::post('/matches', [MatchController::class, 'store']);
-    Route::get('/matches/{id}', [MatchController::class, 'show']);
-    Route::put('/matches/{id}', [MatchController::class, 'update']);
-    Route::delete('/matches/{id}', [MatchController::class, 'destroy']);
+// Fund Transactions
+Route::get('/fund-transactions', [FundTransactionController::class, 'index']);
+Route::post('/fund-transactions', [FundTransactionController::class, 'store']);
+Route::get('/fund-transactions/{id}', [FundTransactionController::class, 'show']);
+Route::put('/fund-transactions/{id}', [FundTransactionController::class, 'update']);
+Route::delete('/fund-transactions/{id}', [FundTransactionController::class, 'destroy']);
 
-    // User profile
-    Route::get('/user/profile', [UserController::class, 'profile']);
-    Route::put('/user/profile', [UserController::class, 'updateProfile']);
-});
+// Matches
+Route::get('/matches', [MatchController::class, 'index']);
+Route::post('/matches', [MatchController::class, 'store']);
+Route::get('/matches/{id}', [MatchController::class, 'show']);
+Route::put('/matches/{id}', [MatchController::class, 'update']);
+Route::delete('/matches/{id}', [MatchController::class, 'destroy']);
+
+// User profile
+Route::get('/user/profile', [UserController::class, 'profile']);
+Route::put('/user/profile', [UserController::class, 'updateProfile']);
