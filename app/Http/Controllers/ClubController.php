@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use App\Models\UserClub; // Added this import for UserClub
 
 class ClubController extends Controller
 {
@@ -181,19 +182,33 @@ class ClubController extends Controller
                 ], 401);
             }
 
-            // Kiểm tra xem user có club nào không
-            $userClubs = Club::where('created_by', $userId)->count();
+            // Kiểm tra xem user có club nào không từ bảng user_clubs
+            $userClubs = UserClub::where('user_id', $userId)->where('is_active', true)->count();
             
             if ($userClubs === 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Bạn chưa có câu lạc bộ nào. Vui lòng tạo câu lạc bộ trước.',
+                    'message' => 'Bạn chưa tham gia câu lạc bộ nào. Vui lòng chọn hoặc tạo câu lạc bộ trước.',
                     'code' => 'NO_CLUB_FOUND',
-                    'action_required' => 'create_club'
+                    'action_required' => 'select_or_create_club'
                 ], 404);
             }
 
-            // Nếu có club, gọi method getClubInfo
+            // Kiểm tra xem user có quyền truy cập club này không
+            $userClub = UserClub::where('user_id', $userId)
+                ->where('club_id', $id)
+                ->where('is_active', true)
+                ->first();
+
+            if (!$userClub) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không có quyền truy cập câu lạc bộ này',
+                    'code' => 'ACCESS_DENIED'
+                ], 403);
+            }
+
+            // Nếu có quyền, gọi method getClubInfo
             return $this->getClubInfo($id);
             
         } catch (\Exception $e) {
@@ -423,7 +438,7 @@ class ClubController extends Controller
     }
 
     /**
-     * Kiểm tra trạng thái club của user
+     * Check club status for current user
      */
     public function checkClubStatus()
     {
@@ -437,37 +452,42 @@ class ClubController extends Controller
                 ], 401);
             }
 
-            $club = Club::where('created_by', $userId)->first();
-            $userClubs = User::with('clubs')->find($userId);
+            // Kiểm tra từ bảng user_clubs
+            $userClubs = UserClub::where('user_id', $userId)
+                ->where('is_active', true)
+                ->with(['club:id,name,sport,logo,address,is_setup'])
+                ->get();
 
             $response = [
                 'success' => true,
                 'has_own_club' => false,
                 'is_member_of_clubs' => false,
-                'total_clubs' => 0,
-                'action_required' => null
+                'total_clubs' => $userClubs->count(),
+                'clubs' => $userClubs,
+                'action_required' => null,
+                'message' => ''
             ];
 
-            if ($club) {
-                $response['has_own_club'] = true;
-                $response['own_club'] = $club;
-            }
-
-            if ($userClubs && $userClubs->clubs->count() > 0) {
+            if ($userClubs->count() > 0) {
                 $response['is_member_of_clubs'] = true;
-                $response['total_clubs'] = $userClubs->clubs->count();
-                $response['clubs'] = $userClubs->clubs;
+                
+                // Kiểm tra xem có phải là admin của club nào không
+                $adminClubs = $userClubs->where('role', 'admin');
+                if ($adminClubs->count() > 0) {
+                    $response['has_own_club'] = true;
+                    $response['own_club'] = $adminClubs->first()->club;
+                }
             }
 
             // Xác định action cần thiết
-            if (!$response['has_own_club'] && !$response['is_member_of_clubs']) {
+            if ($userClubs->count() === 0) {
                 $response['action_required'] = 'create_or_join_club';
-                $response['message'] = 'Bạn chưa có câu lạc bộ nào. Vui lòng tạo hoặc tham gia câu lạc bộ.';
-            } elseif (!$response['has_own_club'] && $response['is_member_of_clubs']) {
+                $response['message'] = 'Bạn chưa tham gia câu lạc bộ nào. Vui lòng tạo hoặc tham gia câu lạc bộ.';
+            } elseif (!$response['has_own_club']) {
                 $response['action_required'] = 'create_own_club';
                 $response['message'] = 'Bạn đã tham gia câu lạc bộ nhưng chưa có câu lạc bộ riêng.';
             } else {
-                $response['message'] = 'Bạn đã có câu lạc bộ riêng.';
+                $response['message'] = 'Bạn đã có câu lạc bộ riêng và đang tham gia các câu lạc bộ khác.';
             }
 
             return response()->json($response);
@@ -496,6 +516,193 @@ class ClubController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error in test method',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all available clubs that user can join
+     */
+    public function getAvailableClubs()
+    {
+        try {
+            $userId = $this->getCurrentUserId();
+
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            // Lấy danh sách tất cả câu lạc bộ
+            $allClubs = Club::where('is_setup', true)
+                ->with(['creator:id,name,avatar'])
+                ->get();
+
+            // Lấy danh sách câu lạc bộ user đã tham gia
+            $userJoinedClubIds = UserClub::where('user_id', $userId)
+                ->where('is_active', true)
+                ->pluck('club_id')
+                ->toArray();
+
+            // Phân loại câu lạc bộ
+            $joinedClubs = $allClubs->whereIn('id', $userJoinedClubIds);
+            $availableClubs = $allClubs->whereNotIn('id', $userJoinedClubIds);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'joined_clubs' => $joinedClubs,
+                    'available_clubs' => $availableClubs,
+                    'total_joined' => $joinedClubs->count(),
+                    'total_available' => $availableClubs->count()
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving available clubs',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Join a club
+     */
+    public function joinClub(Request $request)
+    {
+        try {
+            $request->validate([
+                'club_id' => 'required|exists:clubs,id',
+                'role' => 'sometimes|in:member,admin,guest',
+                'notes' => 'nullable|string'
+            ]);
+
+            $userId = $this->getCurrentUserId();
+
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            // Kiểm tra xem user đã tham gia club này chưa
+            $existingMembership = UserClub::where('user_id', $userId)
+                ->where('club_id', $request->club_id)
+                ->first();
+
+            if ($existingMembership) {
+                if ($existingMembership->is_active) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Bạn đã tham gia câu lạc bộ này rồi'
+                    ], 400);
+                } else {
+                    // Kích hoạt lại membership
+                    $existingMembership->update([
+                        'is_active' => true,
+                        'role' => $request->role ?? 'member',
+                        'notes' => $request->notes,
+                        'joined_date' => now()
+                    ]);
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Đã tham gia lại câu lạc bộ thành công',
+                        'data' => $existingMembership->load('club')
+                    ]);
+                }
+            }
+
+            // Tạo membership mới
+            $userClub = UserClub::create([
+                'user_id' => $userId,
+                'club_id' => $request->club_id,
+                'role' => $request->role ?? 'member',
+                'joined_date' => now(),
+                'notes' => $request->notes,
+                'is_active' => true
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tham gia câu lạc bộ thành công',
+                'data' => $userClub->load('club')
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi tham gia câu lạc bộ',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Leave a club
+     */
+    public function leaveClub(Request $request)
+    {
+        try {
+            $request->validate([
+                'club_id' => 'required|exists:clubs,id'
+            ]);
+
+            $userId = $this->getCurrentUserId();
+
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            // Tìm membership
+            $userClub = UserClub::where('user_id', $userId)
+                ->where('club_id', $request->club_id)
+                ->where('is_active', true)
+                ->first();
+
+            if (!$userClub) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn không tham gia câu lạc bộ này'
+                ], 404);
+            }
+
+            // Kiểm tra xem user có phải là admin cuối cùng không
+            if ($userClub->role === 'admin') {
+                $adminCount = UserClub::where('club_id', $request->club_id)
+                    ->where('role', 'admin')
+                    ->where('is_active', true)
+                    ->count();
+
+                if ($adminCount <= 1) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Không thể rời khỏi câu lạc bộ vì bạn là admin cuối cùng'
+                    ], 400);
+                }
+            }
+
+            // Deactivate membership
+            $userClub->update(['is_active' => false]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã rời khỏi câu lạc bộ thành công'
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi rời khỏi câu lạc bộ',
                 'error' => $e->getMessage()
             ], 500);
         }
