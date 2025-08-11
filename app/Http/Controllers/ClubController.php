@@ -96,21 +96,12 @@ class ClubController extends Controller
                 'clubs_count' => $user->clubs->count()
             ]);
 
-            // Kiểm tra xem user có club nào không
-            if ($user->clubs->count() === 0) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Bạn chưa tham gia câu lạc bộ nào.',
-                    'code' => 'NO_CLUBS_FOUND',
-                    'action_required' => 'create_or_join_club',
-                    'data' => []
-                ]);
-            }
-
+            // Luôn trả về danh sách clubs (có thể rỗng)
             return response()->json([
                 'success' => true,
                 'data' => $user->clubs
             ]);
+            
         } catch (\Exception $e) {
             \Log::error('ClubController::getUserClubs - Error:', [
                 'error' => $e->getMessage(),
