@@ -197,26 +197,6 @@ Route::get('/test-club-controller', function () {
     }
 });
 
-// Test route để kiểm tra User model
-Route::get('/test-user-model', function () {
-    try {
-        $users = \App\Models\User::take(3)->get();
-        return response()->json([
-            'message' => 'User model test successful',
-            'timestamp' => now(),
-            'status' => 'success',
-            'count' => $users->count(),
-            'users' => $users
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'message' => 'User model test failed: ' . $e->getMessage(),
-            'timestamp' => now(),
-            'status' => 'error'
-        ], 500);
-    }
-});
-
 // Test route để kiểm tra ClubMember model
 Route::get('/test-club-member-model', function () {
     try {
@@ -310,41 +290,6 @@ Route::get('/test-controller-instance', function () {
     } catch (\Exception $e) {
         return response()->json([
             'message' => 'Failed to create ClubController: ' . $e->getMessage(),
-            'timestamp' => now(),
-            'status' => 'error',
-            'trace' => $e->getTraceAsString()
-        ], 500);
-    }
-});
-
-
-
-// Test route để kiểm tra User model
-Route::get('/test-user-model', function () {
-    try {
-        $user = \App\Models\User::where('email', 'dev@example.com')->first();
-        
-        if ($user) {
-            return response()->json([
-                'message' => 'User model test successful',
-                'timestamp' => now(),
-                'status' => 'success',
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email
-                ]
-            ]);
-        } else {
-            return response()->json([
-                'message' => 'User not found',
-                'timestamp' => now(),
-                'status' => 'error'
-            ], 404);
-        }
-    } catch (\Exception $e) {
-        return response()->json([
-            'message' => 'User model test failed: ' . $e->getMessage(),
             'timestamp' => now(),
             'status' => 'error',
             'trace' => $e->getTraceAsString()
