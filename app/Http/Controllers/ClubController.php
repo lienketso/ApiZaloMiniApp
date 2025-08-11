@@ -31,7 +31,10 @@ class ClubController extends Controller
             if (!$club) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Club not found'
+                    'message' => 'Bạn chưa có câu lạc bộ nào. Vui lòng tạo câu lạc bộ trước.',
+                    'code' => 'NO_CLUB_FOUND',
+                    'action_required' => 'create_club',
+                    'data' => null
                 ], 404);
             }
 
@@ -92,6 +95,17 @@ class ClubController extends Controller
                 'user_name' => $user->name,
                 'clubs_count' => $user->clubs->count()
             ]);
+
+            // Kiểm tra xem user có club nào không
+            if ($user->clubs->count() === 0) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Bạn chưa tham gia câu lạc bộ nào.',
+                    'code' => 'NO_CLUBS_FOUND',
+                    'action_required' => 'create_or_join_club',
+                    'data' => []
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -159,11 +173,42 @@ class ClubController extends Controller
     }
 
     /**
-     * Show club by ID (alias for getClubInfo)
+     * Show club by ID - xử lý trường hợp user chưa có club
      */
     public function show($id)
     {
-        return $this->getClubInfo($id);
+        try {
+            $userId = $this->getCurrentUserId();
+
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            // Kiểm tra xem user có club nào không
+            $userClubs = Club::where('created_by', $userId)->count();
+            
+            if ($userClubs === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn chưa có câu lạc bộ nào. Vui lòng tạo câu lạc bộ trước.',
+                    'code' => 'NO_CLUB_FOUND',
+                    'action_required' => 'create_club'
+                ], 404);
+            }
+
+            // Nếu có club, gọi method getClubInfo
+            return $this->getClubInfo($id);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi truy cập thông tin câu lạc bộ',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -341,6 +386,65 @@ class ClubController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error deleting club',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Kiểm tra trạng thái club của user
+     */
+    public function checkClubStatus()
+    {
+        try {
+            $userId = $this->getCurrentUserId();
+
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            $club = Club::where('created_by', $userId)->first();
+            $userClubs = User::with('clubs')->find($userId);
+
+            $response = [
+                'success' => true,
+                'has_own_club' => false,
+                'is_member_of_clubs' => false,
+                'total_clubs' => 0,
+                'action_required' => null
+            ];
+
+            if ($club) {
+                $response['has_own_club'] = true;
+                $response['own_club'] = $club;
+            }
+
+            if ($userClubs && $userClubs->clubs->count() > 0) {
+                $response['is_member_of_clubs'] = true;
+                $response['total_clubs'] = $userClubs->clubs->count();
+                $response['clubs'] = $userClubs->clubs;
+            }
+
+            // Xác định action cần thiết
+            if (!$response['has_own_club'] && !$response['is_member_of_clubs']) {
+                $response['action_required'] = 'create_or_join_club';
+                $response['message'] = 'Bạn chưa có câu lạc bộ nào. Vui lòng tạo hoặc tham gia câu lạc bộ.';
+            } elseif (!$response['has_own_club'] && $response['is_member_of_clubs']) {
+                $response['action_required'] = 'create_own_club';
+                $response['message'] = 'Bạn đã tham gia câu lạc bộ nhưng chưa có câu lạc bộ riêng.';
+            } else {
+                $response['message'] = 'Bạn đã có câu lạc bộ riêng.';
+            }
+
+            return response()->json($response);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi kiểm tra trạng thái club',
                 'error' => $e->getMessage()
             ], 500);
         }

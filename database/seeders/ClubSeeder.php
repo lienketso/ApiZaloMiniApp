@@ -13,6 +13,13 @@ class ClubSeeder extends Seeder
      */
     public function run(): void
     {
+        // Tìm user đầu tiên hoặc tạo user mới
+        $user = \App\Models\User::first();
+        
+        if (!$user) {
+            $user = \App\Models\User::factory()->create();
+        }
+
         Club::create([
             'name' => 'My Club',
             'sport' => 'Bóng đá',
@@ -21,7 +28,18 @@ class ClubSeeder extends Seeder
             'email' => 'myclub@example.com',
             'description' => 'Câu lạc bộ bóng đá cộng đồng với mục tiêu phát triển tài năng và tạo môi trường thi đấu lành mạnh',
             'is_setup' => true,
-            'created_by' => 1,
+            'created_by' => $user->id,
         ]);
+
+        // Tạo relationship user_club
+        $club = Club::where('name', 'My Club')->first();
+        if ($club) {
+            $club->users()->attach($user->id, [
+                'role' => 'admin',
+                'joined_date' => now(),
+                'notes' => 'Club creator',
+                'is_active' => true
+            ]);
+        }
     }
 }
