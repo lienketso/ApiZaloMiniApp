@@ -171,42 +171,13 @@ class ZaloAuthController extends Controller
         try {
             $totalEvents = \App\Models\Event::count();
             
-            // Kiểm tra xem user có member record không
-            $member = $user->member;
-            if (!$member) {
-                return [
-                    'total_events' => $totalEvents,
-                    'total_attendance' => 0,
-                    'attendance_rate' => 0,
-                ];
-            }
-            
-            // Lấy attendance count một cách an toàn
-            $totalAttendance = 0;
-            if ($member) {
-                try {
-                    $totalAttendance = $user->attendances()->count();
-                } catch (\Exception $e) {
-                    \Log::warning('Error counting attendances for user:', [
-                        'user_id' => $user->id,
-                        'error' => $e->getMessage()
-                    ]);
-                    $totalAttendance = 0;
-                }
-            }
-            $attendanceRate = $totalEvents > 0 ? round(($totalAttendance / $totalEvents) * 100) : 0;
-
+            // Trả về stats mặc định cho user mới
             return [
                 'total_events' => $totalEvents,
-                'total_attendance' => $totalAttendance,
-                'attendance_rate' => $attendanceRate,
+                'total_attendance' => 0,
+                'attendance_rate' => 0,
             ];
         } catch (\Exception $e) {
-            \Log::warning('Error calculating user stats:', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage()
-            ]);
-            
             // Trả về stats mặc định nếu có lỗi
             return [
                 'total_events' => 0,
@@ -310,31 +281,12 @@ class ZaloAuthController extends Controller
                     'email' => 'zalo_' . $zaloGid . '@temp.com', // Email tạm thời bắt buộc
                 ];
                 
-                \Log::info('Attempting to create user with data:', $userData);
-                
                 try {
                     // Tạo user mới
                     $user = User::create($userData);
-                    
-                    \Log::info('User created successfully', [
-                        'user_id' => $user->id,
-                        'zalo_gid' => $zaloGid
-                    ]);
-                    
                 } catch (\Exception $createError) {
-                    \Log::error('Error creating user:', [
-                        'error' => $createError->getMessage(),
-                        'data' => $userData,
-                        'trace' => $createError->getTraceAsString()
-                    ]);
                     throw $createError;
                 }
-
-                \Log::info('Auto-created new user during auto login', [
-                    'zalo_gid' => $zaloGid,
-                    'name' => $request->name,
-                    'created_at' => now()
-                ]);
             } else {
                 // Cập nhật thông tin nếu user đã tồn tại
                 $updateData = [
@@ -355,12 +307,6 @@ class ZaloAuthController extends Controller
                 }
                 
                 $user->update($updateData);
-
-                \Log::info('Updated existing user during auto login', [
-                    'zalo_gid' => $zaloGid,
-                    'name' => $request->name,
-                    'updated_at' => now()
-                ]);
             }
 
             // Tạo token mới
@@ -382,11 +328,6 @@ class ZaloAuthController extends Controller
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('Validation error during auto login', [
-                'zalo_gid' => $request->zalo_gid ?? 'unknown',
-                'errors' => $e->errors(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Dữ liệu không hợp lệ',
@@ -395,12 +336,6 @@ class ZaloAuthController extends Controller
             ], 422);
             
         } catch (\Exception $e) {
-            \Log::error('Error during auto login', [
-                'zalo_gid' => $request->zalo_gid ?? 'unknown',
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi trong quá trình đăng nhập tự động',
