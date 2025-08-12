@@ -495,6 +495,7 @@ class ClubController extends Controller
     {
         try {
             $userId = $this->getCurrentUserId();
+            $user = $this->getCurrentUser();
             
             return response()->json([
                 'success' => true,
@@ -502,8 +503,18 @@ class ClubController extends Controller
                 'timestamp' => now(),
                 'debug' => [
                     'current_user_id' => $userId,
+                    'current_user' => $user ? [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'zalo_gid' => $user->zalo_gid
+                    ] : null,
                     'user_exists' => $userId ? User::find($userId) ? true : false : false,
-                    'user_clubs_count' => $userId ? UserClub::where('user_id', $userId)->where('is_active', true)->count() : 0
+                    'user_clubs_count' => $userId ? UserClub::where('user_id', $userId)->where('is_active', true)->count() : 0,
+                    'request_data' => [
+                        'zalo_gid_from_input' => request()->input('zalo_gid'),
+                        'zalo_gid_from_header' => request()->header('X-Zalo-GID'),
+                        'all_headers' => request()->headers->all()
+                    ]
                 ]
             ]);
         } catch (\Exception $e) {
@@ -704,29 +715,67 @@ class ClubController extends Controller
     }
 
     /**
-     * Get current user ID - sử dụng mock user cho development
+     * Get current user ID - sử dụng zalo_gid từ request
      */
     private function getCurrentUserId()
     {
         try {
-            // Tìm hoặc tạo user mặc định cho development
-            $mockUser = User::where('zalo_gid', '5170627724267093288')->first();
-
-            if (!$mockUser) {
-                // Tạo user mặc định cho development
-                $mockUser = User::create([
-                    'name' => 'Dev User',
-                    'email' => 'dev@example.com',
-                    'password' => bcrypt('password'),
-                    'zalo_gid' => 'dev_zalo_gid',
-                    'role' => 'admin'
-                ]);
+            // Lấy zalo_gid từ request
+            $zaloGid = request()->input('zalo_gid') ?? request()->header('X-Zalo-GID');
+            
+            if (!$zaloGid) {
+                \Log::warning('ClubController::getCurrentUserId - No zalo_gid found in request');
+                return null;
             }
 
-            return $mockUser->id;
+            \Log::info('ClubController::getCurrentUserId - Looking for user with zalo_gid: ' . $zaloGid);
+            
+            // Tìm user theo zalo_gid
+            $user = User::where('zalo_gid', $zaloGid)->first();
+            
+            if (!$user) {
+                \Log::warning('ClubController::getCurrentUserId - User not found with zalo_gid: ' . $zaloGid);
+                return null;
+            }
+
+            \Log::info('ClubController::getCurrentUserId - Found user: ' . $user->id . ' with zalo_gid: ' . $zaloGid);
+            return $user->id;
             
         } catch (\Exception $e) {
-            // Trả về null nếu có lỗi, để method gọi có thể xử lý
+            \Log::error('ClubController::getCurrentUserId - Error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get current user - sử dụng zalo_gid từ request
+     */
+    private function getCurrentUser()
+    {
+        try {
+            // Lấy zalo_gid từ request
+            $zaloGid = request()->input('zalo_gid') ?? request()->header('X-Zalo-GID');
+            
+            if (!$zaloGid) {
+                \Log::warning('ClubController::getCurrentUser - No zalo_gid found in request');
+                return null;
+            }
+
+            \Log::info('ClubController::getCurrentUser - Looking for user with zalo_gid: ' . $zaloGid);
+            
+            // Tìm user theo zalo_gid
+            $user = User::where('zalo_gid', $zaloGid)->first();
+            
+            if (!$user) {
+                \Log::warning('ClubController::getCurrentUser - User not found with zalo_gid: ' . $zaloGid);
+                return null;
+            }
+
+            \Log::info('ClubController::getCurrentUser - Found user: ' . $user->id . ' with zalo_gid: ' . $zaloGid);
+            return $user;
+            
+        } catch (\Exception $e) {
+            \Log::error('ClubController::getCurrentUser - Error: ' . $e->getMessage());
             return null;
         }
     }
