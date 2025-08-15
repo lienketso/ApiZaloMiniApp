@@ -9,10 +9,21 @@ use Illuminate\Support\Facades\Log;
 
 class EventController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
-            $events = Event::with(['attendances.user', 'club'])->get();
+            // Lấy club_id từ request hoặc từ user hiện tại
+            $clubId = $request->input('club_id') ?? $request->query('club_id');
+            
+            if (!$clubId) {
+                // Nếu không có club_id, trả về tất cả events (fallback)
+                $events = Event::with(['attendances.user', 'club'])->get();
+            } else {
+                // Filter events theo club_id
+                $events = Event::with(['attendances.user', 'club'])
+                    ->where('club_id', $clubId)
+                    ->get();
+            }
 
             return response()->json([
                 'success' => true,
@@ -21,7 +32,8 @@ class EventController extends Controller
         } catch (\Exception $e) {
             Log::error('EventController::index - Exception:', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'request_club_id' => $clubId ?? 'not_provided'
             ]);
             return response()->json([
                 'success' => false,
