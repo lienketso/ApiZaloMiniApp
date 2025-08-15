@@ -16,34 +16,74 @@ class UserClubController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            // Lấy club_id từ request hoặc từ user hiện tại
-            $clubId = $request->input('club_id');
+            // Lấy club_id từ request query hoặc body
+            $clubId = $request->input('club_id') ?? $request->query('club_id');
+            
+            // Debug: Log thông tin
+            \Log::info('UserClubController::index - Request data:', [
+                'club_id_from_request' => $clubId,
+                'user_authenticated' => $request->user() ? 'yes' : 'no',
+                'user_id' => $request->user() ? $request->user()->id : null
+            ]);
             
             // Nếu không có club_id, lấy club đầu tiên của user hiện tại
             if (!$clubId) {
                 $user = $request->user();
                 if ($user) {
+                    \Log::info('UserClubController::index - Looking for user clubs for user:', [
+                        'user_id' => $user->id,
+                        'user_name' => $user->name
+                    ]);
+                    
                     $userClub = UserClub::where('user_id', $user->id)
                         ->where('is_active', true)
                         ->first();
+                    
                     if ($userClub) {
                         $clubId = $userClub->club_id;
+                        \Log::info('UserClubController::index - Found user club:', [
+                            'club_id' => $clubId,
+                            'club_name' => $userClub->club->name ?? 'unknown'
+                        ]);
+                    } else {
+                        \Log::warning('UserClubController::index - No user club found for user:', [
+                            'user_id' => $user->id
+                        ]);
                     }
+                } else {
+                    \Log::warning('UserClubController::index - No authenticated user found');
+                }
+            }
+
+            // Nếu vẫn không có club_id, lấy club đầu tiên có sẵn (fallback)
+            if (!$clubId) {
+                $firstClub = Club::first();
+                if ($firstClub) {
+                    $clubId = $firstClub->id;
+                    \Log::info('UserClubController::index - Using fallback club:', [
+                        'club_id' => $clubId,
+                        'club_name' => $firstClub->name
+                    ]);
                 }
             }
 
             if (!$clubId) {
+                \Log::error('UserClubController::index - No club found at all');
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy club'
                 ], 404);
             }
 
+            \Log::info('UserClubController::index - Loading members for club:', ['club_id' => $clubId]);
+
             // Lấy thành viên từ bảng user_clubs
             $userClubs = UserClub::where('club_id', $clubId)
                 ->where('is_active', true)
                 ->with(['user', 'club'])
                 ->get();
+
+            \Log::info('UserClubController::index - Found user clubs:', ['count' => $userClubs->count()]);
 
             // Transform data để frontend dễ sử dụng
             $members = $userClubs->map(function ($userClub) {
@@ -69,6 +109,11 @@ class UserClubController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('UserClubController::index - Exception:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
