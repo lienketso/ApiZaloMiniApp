@@ -2,31 +2,117 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ClubMember;
+use App\Models\UserClub;
 use App\Models\Club;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
-class ClubMemberController extends Controller
+class UserClubController extends Controller
 {
     /**
-     * Add a member to a club
+     * Display a listing of club members
      */
-    public function addMemberToClub(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse
+    {
+        try {
+            // Lấy club_id từ request hoặc từ user hiện tại
+            $clubId = $request->input('club_id');
+            
+            // Nếu không có club_id, lấy club đầu tiên của user hiện tại
+            if (!$clubId) {
+                $user = $request->user();
+                if ($user) {
+                    $userClub = UserClub::where('user_id', $user->id)
+                        ->where('is_active', true)
+                        ->first();
+                    if ($userClub) {
+                        $clubId = $userClub->club_id;
+                    }
+                }
+            }
+
+            if (!$clubId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy club'
+                ], 404);
+            }
+
+            // Lấy thành viên từ bảng user_clubs
+            $userClubs = UserClub::where('club_id', $clubId)
+                ->where('is_active', true)
+                ->with(['user', 'club'])
+                ->get();
+
+            // Transform data để frontend dễ sử dụng
+            $members = $userClubs->map(function ($userClub) {
+                return [
+                    'id' => $userClub->id,
+                    'name' => $userClub->user->name ?? 'Không xác định',
+                    'phone' => $userClub->user->phone ?? null,
+                    'email' => $userClub->user->email ?? null,
+                    'role' => $userClub->role,
+                    'club_role' => $userClub->role,
+                    'joined_date' => $userClub->joined_date,
+                    'created_at' => $userClub->created_at,
+                    'updated_at' => $userClub->updated_at,
+                    'notes' => $userClub->notes,
+                    'avatar' => null, // Có thể thêm avatar sau
+                    'is_active' => $userClub->is_active,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $members
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Store a newly created club member
+     */
+    public function store(Request $request): JsonResponse
     {
         $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|string|max:255',
             'club_id' => 'required|exists:clubs,id',
-            'member_id' => 'required|exists:users,id',
-            'role' => 'required|in:member,admin,guest',
+            'club_role' => 'required|in:member,admin,guest',
             'joined_date' => 'nullable|date',
             'notes' => 'nullable|string',
         ]);
 
         try {
-            // Check if member is already in this club
-            $existingMembership = ClubMember::where('club_id', $request->club_id)
-                ->where('member_id', $request->member_id)
+            // Tìm user dựa trên phone hoặc email
+            $user = null;
+            if ($request->phone) {
+                $user = User::where('phone', $request->phone)->first();
+            } elseif ($request->email) {
+                $user = User::where('email', $request->email)->first();
+            }
+
+            // Nếu không tìm thấy user, tạo user mới
+            if (!$user) {
+                $user = User::create([
+                    'name' => $request->name,
+                    'phone' => $request->phone,
+                    'email' => $request->email,
+                    'password' => bcrypt('default_password'), // Có thể thay đổi sau
+                ]);
+            }
+
+            // Kiểm tra xem user đã là thành viên của club này chưa
+            $existingMembership = UserClub::where('club_id', $request->club_id)
+                ->where('user_id', $user->id)
                 ->first();
 
             if ($existingMembership) {
@@ -36,19 +122,39 @@ class ClubMemberController extends Controller
                 ], 400);
             }
 
-            $clubMember = ClubMember::create([
+            // Tạo user club mới (sử dụng bảng user_clubs)
+            $userClub = UserClub::create([
                 'club_id' => $request->club_id,
-                'member_id' => $request->member_id,
-                'role' => $request->role,
+                'user_id' => $user->id,
+                'role' => $request->club_role,
                 'joined_date' => $request->joined_date ?? now(),
                 'notes' => $request->notes,
                 'is_active' => true,
             ]);
 
+            // Load relationships
+            $userClub->load(['user', 'club']);
+
+            // Transform data để frontend dễ sử dụng
+            $memberData = [
+                'id' => $userClub->id,
+                'name' => $userClub->user->name,
+                'phone' => $userClub->user->phone,
+                'email' => $userClub->user->email,
+                'role' => $userClub->role,
+                'club_role' => $userClub->role,
+                'joined_date' => $userClub->joined_date,
+                'created_at' => $userClub->created_at,
+                'updated_at' => $userClub->updated_at,
+                'notes' => $userClub->notes,
+                'avatar' => null,
+                'is_active' => $userClub->is_active,
+            ];
+
             return response()->json([
                 'success' => true,
                 'message' => 'Thêm thành viên vào câu lạc bộ thành công',
-                'data' => $clubMember->load(['user', 'club'])
+                'data' => $memberData
             ]);
 
         } catch (\Exception $e) {
@@ -60,29 +166,90 @@ class ClubMemberController extends Controller
     }
 
     /**
-     * Update member role in club
+     * Display the specified club member
      */
-    public function updateMemberRole(Request $request, $id): JsonResponse
+    public function show($id): JsonResponse
+    {
+        try {
+            $userClub = UserClub::with(['user', 'club'])->findOrFail($id);
+            
+            $memberData = [
+                'id' => $userClub->id,
+                'name' => $userClub->user->name,
+                'phone' => $userClub->user->phone,
+                'email' => $userClub->user->email,
+                'role' => $userClub->role,
+                'club_role' => $userClub->role,
+                'joined_date' => $userClub->joined_date,
+                'created_at' => $userClub->created_at,
+                'updated_at' => $userClub->updated_at,
+                'notes' => $userClub->notes,
+                'avatar' => null,
+                'is_active' => $userClub->is_active,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $memberData
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update the specified club member
+     */
+    public function update(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'role' => 'required|in:member,admin,guest',
+            'name' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|string|max:255',
+            'club_role' => 'nullable|in:member,admin,guest',
             'notes' => 'nullable|string',
             'is_active' => 'boolean',
         ]);
 
         try {
-            $clubMember = ClubMember::findOrFail($id);
+            $userClub = UserClub::findOrFail($id);
+            
+            // Cập nhật thông tin user nếu có
+            if ($request->has('name') || $request->has('phone') || $request->has('email')) {
+                $user = $userClub->user;
+                $user->update($request->only(['name', 'phone', 'email']));
+            }
 
-            $clubMember->update([
-                'role' => $request->role,
-                'notes' => $request->notes,
-                'is_active' => $request->has('is_active') ? $request->is_active : $clubMember->is_active,
-            ]);
+            // Cập nhật thông tin user club
+            $userClub->update($request->only(['club_role', 'notes', 'is_active']));
+
+            // Load relationships
+            $userClub->load(['user', 'club']);
+
+            // Transform data
+            $memberData = [
+                'id' => $userClub->id,
+                'name' => $userClub->user->name,
+                'phone' => $userClub->user->phone,
+                'email' => $userClub->user->email,
+                'role' => $userClub->role,
+                'club_role' => $userClub->role,
+                'joined_date' => $userClub->joined_date,
+                'created_at' => $userClub->created_at,
+                'updated_at' => $userClub->updated_at,
+                'notes' => $userClub->notes,
+                'avatar' => null,
+                'is_active' => $userClub->is_active,
+            ];
 
             return response()->json([
                 'success' => true,
                 'message' => 'Cập nhật thông tin thành viên thành công',
-                'data' => $clubMember->load(['user', 'club'])
+                'data' => $memberData
             ]);
 
         } catch (\Exception $e) {
@@ -94,13 +261,13 @@ class ClubMemberController extends Controller
     }
 
     /**
-     * Remove member from club
+     * Remove the specified club member
      */
-    public function removeMemberFromClub($id): JsonResponse
+    public function destroy($id): JsonResponse
     {
         try {
-            $clubMember = ClubMember::findOrFail($id);
-            $clubMember->delete();
+            $userClub = UserClub::findOrFail($id);
+            $userClub->delete();
 
             return response()->json([
                 'success' => true,
@@ -113,62 +280,5 @@ class ClubMemberController extends Controller
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
             ], 500);
         }
-    }
-
-    /**
-     * Get all members of a club
-     */
-    public function getClubMembers($clubId): JsonResponse
-    {
-        try {
-            $clubMembers = ClubMember::where('club_id', $clubId)
-                ->with(['user', 'club'])
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $clubMembers
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get all clubs of a member
-     */
-    public function getMemberClubs($memberId): JsonResponse
-    {
-        try {
-            $memberClubs = ClubMember::where('member_id', $memberId)
-                ->with(['user', 'club'])
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $memberClubs
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get role options
-     */
-    public function getRoleOptions(): JsonResponse
-    {
-        return response()->json([
-            'success' => true,
-            'data' => ClubMember::getRoleOptions()
-        ]);
     }
 }

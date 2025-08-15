@@ -55,24 +55,6 @@ class Club extends Model
     }
 
     /**
-     * Get the club's members through pivot table
-     */
-    public function members()
-    {
-        return $this->belongsToMany(User::class, 'club_member', 'club_id', 'member_id')
-                    ->withPivot('role', 'joined_date', 'notes', 'is_active')
-                    ->withTimestamps();
-    }
-
-    /**
-     * Get the club's member relationships
-     */
-    public function clubMembers()
-    {
-        return $this->hasMany(ClubMember::class);
-    }
-
-    /**
      * Get the club's events
      */
     public function events()

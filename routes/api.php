@@ -9,9 +9,9 @@ use App\Http\Controllers\ZaloAuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FundTransactionController;
 use App\Http\Controllers\ClubController;
-use App\Http\Controllers\ClubMemberController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UserClubController;
 
 /*
 |--------------------------------------------------------------------------
@@ -197,26 +197,6 @@ Route::get('/test-club-controller', function () {
     }
 });
 
-// Test route để kiểm tra ClubMember model
-Route::get('/test-club-member-model', function () {
-    try {
-        $clubMembers = \App\Models\ClubMember::take(3)->get();
-        return response()->json([
-            'message' => 'ClubMember model test successful',
-            'timestamp' => now(),
-            'status' => 'success',
-            'count' => $clubMembers->count(),
-            'club_members' => $clubMembers
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'message' => 'ClubMember model test failed: ' . $e->getMessage(),
-            'timestamp' => now(),
-            'status' => 'error'
-        ], 500);
-    }
-});
-
 // Test route để kiểm tra ClubController trực tiếp (không qua middleware)
 Route::get('/test-club-controller-direct', function () {
     try {
@@ -338,11 +318,11 @@ Route::put('/members/{id}', [MemberController::class, 'update']);
 Route::delete('/members/{id}', [MemberController::class, 'destroy']);
 
 // Club Members
-Route::get('/club-members', [ClubMemberController::class, 'index']);
-Route::post('/club-members', [ClubMemberController::class, 'store']);
-Route::get('/club-members/{id}', [ClubMemberController::class, 'show']);
-Route::put('/club-members/{id}', [ClubMemberController::class, 'update']);
-Route::delete('/club-members/{id}', [ClubMemberController::class, 'destroy']);
+Route::get('/user-clubs', [UserClubController::class, 'index']);
+Route::post('/user-clubs', [UserClubController::class, 'store']);
+Route::get('/user-clubs/{id}', [UserClubController::class, 'show']);
+Route::put('/user-clubs/{id}', [UserClubController::class, 'update']);
+Route::delete('/user-clubs/{id}', [UserClubController::class, 'destroy']);
 
 // Events
 Route::get('/events', [EventController::class, 'index']);
