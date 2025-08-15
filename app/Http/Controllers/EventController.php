@@ -5,76 +5,140 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Event;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+
 class EventController extends Controller
 {
     public function index(): JsonResponse
     {
-        $events = Event::with(['attendances.member'])->get();
+        try {
+            $events = Event::with(['attendances.user', 'club'])->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $events
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $events
+            ]);
+        } catch (\Exception $e) {
+            Log::error('EventController::index - Exception:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function store(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after:start_date',
-            'location' => 'nullable|string|max:255',
-            'max_participants' => 'nullable|integer|min:1'
-        ]);
+        try {
+            $validated = $request->validate([
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after:start_date',
+                'location' => 'nullable|string|max:255',
+                'max_participants' => 'nullable|integer|min:1',
+                'club_id' => 'required|integer|exists:clubs,id'
+            ]);
 
-        $event = Event::create($validated);
+            $event = Event::create($validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => $event->load(['attendances.member']),
-            'message' => 'Sự kiện đã được tạo thành công'
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'data' => $event->load(['attendances.user', 'club']),
+                'message' => 'Sự kiện đã được tạo thành công'
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('EventController::store - Exception:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function show(Event $event): JsonResponse
     {
-        $event->load(['attendances.member']);
+        try {
+            $event->load(['attendances.user', 'club']);
 
-        return response()->json([
-            'success' => true,
-            'data' => $event
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $event
+            ]);
+        } catch (\Exception $e) {
+            Log::error('EventController::show - Exception:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'event_id' => $event->id
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function update(Request $request, Event $event): JsonResponse
     {
-        $validated = $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'description' => 'nullable|string',
-            'start_date' => 'sometimes|required|date',
-            'end_date' => 'sometimes|required|date|after:start_date',
-            'location' => 'nullable|string|max:255',
-            'max_participants' => 'nullable|integer|min:1',
-            'status' => 'sometimes|in:upcoming,ongoing,completed,cancelled'
-        ]);
+        try {
+            $validated = $request->validate([
+                'title' => 'sometimes|required|string|max:255',
+                'description' => 'nullable|string',
+                'start_date' => 'sometimes|required|date',
+                'end_date' => 'sometimes|required|date|after:start_date',
+                'location' => 'nullable|string|max:255',
+                'max_participants' => 'nullable|integer|min:1',
+                'status' => 'sometimes|in:upcoming,ongoing,completed,cancelled',
+                'club_id' => 'sometimes|required|integer|exists:clubs,id'
+            ]);
 
-        $event->update($validated);
+            $event->update($validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => $event->load(['attendances.member']),
-            'message' => 'Sự kiện đã được cập nhật thành công'
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $event->load(['attendances.user', 'club']),
+                'message' => 'Sự kiện đã được cập nhật thành công'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('EventController::update - Exception:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'event_id' => $event->id,
+                'request_data' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function destroy(Event $event): JsonResponse
     {
-        $event->delete();
+        try {
+            $event->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Sự kiện đã được xóa thành công'
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Sự kiện đã được xóa thành công'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('EventController::destroy - Exception:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'event_id' => $event->id
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
