@@ -883,7 +883,7 @@ class ClubController extends Controller
             // Store in public/uploads/clubs directory
             $file->move($uploadPath, $fileName);
 
-            // Get the public URL
+            // Get the public URL - giữ đường dẫn tương đối để dễ thay đổi tên miền
             $url = '/uploads/clubs/' . $fileName;
 
             // Cập nhật logo URL vào database
