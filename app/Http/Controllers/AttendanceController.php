@@ -26,7 +26,8 @@ class AttendanceController extends Controller
             'event_id' => 'required|exists:events,id',
             'user_id' => 'required|exists:users,id',
             'status' => 'required|in:present,absent,late',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string',
+            'guests' => 'nullable|string'
         ]);
 
         // Kiểm tra xem đã có attendance record chưa
@@ -39,7 +40,8 @@ class AttendanceController extends Controller
             $existing->update([
                 'status' => $validated['status'],
                 'check_in_time' => $validated['status'] === 'present' ? now() : null,
-                'notes' => $validated['notes']
+                'notes' => $validated['notes'],
+                'guests' => $validated['guests']
             ]);
 
             $attendance = $existing;
@@ -50,7 +52,8 @@ class AttendanceController extends Controller
                 'user_id' => $validated['user_id'],
                 'status' => $validated['status'],
                 'check_in_time' => $validated['status'] === 'present' ? now() : null,
-                'notes' => $validated['notes']
+                'notes' => $validated['notes'],
+                'guests' => $validated['guests']
             ]);
         }
 
@@ -88,7 +91,8 @@ class AttendanceController extends Controller
             'status' => 'sometimes|required|in:present,absent,late',
             'check_in_time' => 'nullable|date',
             'check_out_time' => 'nullable|date',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string',
+            'guests' => 'nullable|string'
         ]);
 
         $attendance->update($validated);

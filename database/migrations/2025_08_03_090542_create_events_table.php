@@ -28,7 +28,7 @@ return new class extends Migration
         Schema::create('attendance', function (Blueprint $table) {
             $table->id();
             $table->foreignId('event_id')->constrained()->onDelete('cascade');
-            $table->foreignId('member_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->enum('status', ['present', 'absent', 'late'])->default('present');
             $table->dateTime('check_in_time')->nullable();
             $table->dateTime('check_out_time')->nullable();
@@ -36,7 +36,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Đảm bảo mỗi member chỉ có 1 attendance record cho mỗi event
-            $table->unique(['event_id', 'member_id']);
+            $table->unique(['event_id', 'user_id']);
         });
 
     }
