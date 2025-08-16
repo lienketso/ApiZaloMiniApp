@@ -787,7 +787,8 @@ class ClubController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'logo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'
+                'logo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'club_id' => 'required|integer|exists:clubs,id'
             ]);
 
             if ($validator->fails()) {
@@ -798,25 +799,94 @@ class ClubController extends Controller
                 ], 422);
             }
 
+            // Kiểm tra quyền: user phải là admin của club
+            $userId = $this->getCurrentUserId();
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            $club = Club::where('id', $request->club_id)
+                       ->where('created_by', $userId)
+                       ->first();
+
+            if (!$club) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Club not found or you do not have permission to upload logo'
+                ], 403);
+            }
+
+            // Tự động tạo thư mục uploads/clubs nếu chưa có
+            $uploadPath = public_path('uploads/clubs');
+            if (!file_exists($uploadPath)) {
+                try {
+                    // Tạo thư mục uploads nếu chưa có
+                    if (!file_exists(public_path('uploads'))) {
+                        mkdir(public_path('uploads'), 0755, true);
+                        \Log::info('Created uploads directory');
+                    }
+                    
+                    // Tạo thư mục clubs
+                    mkdir($uploadPath, 0755, true);
+                    \Log::info('Created uploads/clubs directory');
+                    
+                    // Phân quyền thư mục
+                    chmod(public_path('uploads'), 0755);
+                    chmod($uploadPath, 0755);
+                    \Log::info('Set permissions for upload directories');
+                    
+                } catch (\Exception $e) {
+                    \Log::error('Error creating upload directories: ' . $e->getMessage());
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Error creating upload directory: ' . $e->getMessage()
+                    ], 500);
+                }
+            }
+
+            // Kiểm tra quyền ghi vào thư mục
+            if (!is_writable($uploadPath)) {
+                try {
+                    chmod($uploadPath, 0755);
+                    \Log::info('Fixed write permissions for uploads/clubs directory');
+                } catch (\Exception $e) {
+                    \Log::error('Error setting write permissions: ' . $e->getMessage());
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Error setting write permissions for upload directory'
+                    ], 500);
+                }
+            }
+
             $file = $request->file('logo');
-            $fileName = 'club_logo_' . time() . '.' . $file->getClientOriginalExtension();
+            $fileName = 'club_logo_' . $club->id . '_' . time() . '.' . $file->getClientOriginalExtension();
 
             // Store in public/uploads/clubs directory
-            $file->move(public_path('uploads/clubs'), $fileName);
+            $file->move($uploadPath, $fileName);
 
             // Get the public URL
             $url = '/uploads/clubs/' . $fileName;
+
+            // Cập nhật logo URL vào database
+            $club->update(['logo' => $url]);
+
+            \Log::info('Logo uploaded successfully for club ' . $club->id . ': ' . $fileName);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Logo uploaded successfully',
                 'data' => [
                     'url' => $url,
-                    'filename' => $fileName
+                    'filename' => $fileName,
+                    'logo_url' => $url // Thêm alias để frontend dễ sử dụng
                 ]
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Error uploading logo: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error uploading logo',
