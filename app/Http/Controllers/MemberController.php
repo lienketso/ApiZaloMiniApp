@@ -8,10 +8,31 @@ use Illuminate\Http\Request;
 
 class MemberController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::with(['clubs'])->get();
-        return response()->json($users);
+        try {
+            // Lấy club_id từ request
+            $clubId = $request->input('club_id') ?? $request->query('club_id');
+            
+            if ($clubId) {
+                // Filter users theo club_id
+                $users = User::whereHas('clubs', function($query) use ($clubId) {
+                    $query->where('club_id', $clubId);
+                })->with(['clubs' => function($query) use ($clubId) {
+                    $query->where('club_id', $clubId);
+                }])->get();
+            } else {
+                // Nếu không có club_id, trả về tất cả users (fallback)
+                $users = User::with(['clubs'])->get();
+            }
+
+            return response()->json($users);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function store(Request $request)
