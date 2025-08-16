@@ -786,18 +786,34 @@ class ClubController extends Controller
     public function uploadLogo(Request $request)
     {
         try {
+            // Debug logging
+            \Log::info('ClubController::uploadLogo - Request received', [
+                'all_data' => $request->all(),
+                'files' => $request->allFiles(),
+                'has_file_logo' => $request->hasFile('logo'),
+                'club_id' => $request->input('club_id'),
+                'headers' => $request->headers->all()
+            ]);
+
             $validator = Validator::make($request->all(), [
                 'logo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'club_id' => 'required|integer|exists:clubs,id'
             ]);
 
             if ($validator->fails()) {
+                \Log::warning('ClubController::uploadLogo - Validation failed', [
+                    'errors' => $validator->errors()->toArray(),
+                    'request_data' => $request->all()
+                ]);
+                
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
             }
+
+            \Log::info('ClubController::uploadLogo - Validation passed');
 
             // Kiểm tra quyền: user phải là admin của club
             $userId = $this->getCurrentUserId();
