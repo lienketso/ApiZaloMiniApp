@@ -13,9 +13,27 @@ class UserController extends Controller
     /**
      * Lấy thông tin profile
      */
-    public function profile()
+    public function profile(Request $request)
     {
-        $user = Auth::user();
+        // Lấy zalo_gid từ request
+        $zaloGid = $request->input('zalo_gid') ?? $request->header('X-Zalo-GID');
+
+        if (!$zaloGid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'zalo_gid is required'
+            ], 400);
+        }
+
+        // Tìm user theo zalo_gid
+        $user = User::where('zalo_gid', $zaloGid)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found with this zalo_gid'
+            ], 404);
+        }
 
         // Tính toán stats
         $totalEvents = \App\Models\Event::count();
@@ -37,28 +55,59 @@ class UserController extends Controller
      */
     public function updateProfile(Request $request)
     {
+        // Lấy zalo_gid từ request
+        $zaloGid = $request->input('zalo_gid') ?? $request->header('X-Zalo-GID');
+
+        if (!$zaloGid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'zalo_gid is required'
+            ], 400);
+        }
+
+        // Tìm user theo zalo_gid
+        $user = User::where('zalo_gid', $zaloGid)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found with this zalo_gid'
+            ], 404);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20',
             'email' => 'nullable|email|max:255',
+            'zalo_gid' => 'nullable|string', // Cho phép zalo_gid trong validation nhưng không cập nhật
         ]);
 
-        $user = Auth::user();
-        $user->update($validated);
+        // Loại bỏ zalo_gid khỏi validated data để không cập nhật
+        unset($validated['zalo_gid']);
 
-        // Tính toán stats
-        $totalEvents = \App\Models\Event::count();
-        $totalAttendance = $user->attendances()->count();
-        $attendanceRate = $totalEvents > 0 ? round(($totalAttendance / $totalEvents) * 100) : 0;
+        try {
+            $user->update($validated);
 
-        return response()->json([
-            'success' => true,
-            'data' => array_merge($user->toArray(), [
-                'total_events' => $totalEvents,
-                'total_attendance' => $totalAttendance,
-                'attendance_rate' => $attendanceRate,
-            ]),
-        ]);
+            // Tính toán stats
+            $totalEvents = \App\Models\Event::count();
+            $totalAttendance = $user->attendances()->count();
+            $attendanceRate = $totalEvents > 0 ? round(($totalAttendance / $totalEvents) * 100) : 0;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cập nhật profile thành công',
+                'data' => array_merge($user->fresh()->toArray(), [
+                    'total_events' => $totalEvents,
+                    'total_attendance' => $totalAttendance,
+                    'attendance_rate' => $attendanceRate,
+                ]),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi cập nhật profile: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

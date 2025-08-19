@@ -2,16 +2,17 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\MemberController;
-use App\Http\Controllers\EventController;
 use App\Http\Controllers\AttendanceController;
-use App\Http\Controllers\ZaloAuthController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\FundTransactionController;
-use App\Http\Controllers\ClubController;
-use App\Http\Controllers\MatchController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ClubController;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\FundTransactionController;
+use App\Http\Controllers\MatchController;
 use App\Http\Controllers\UserClubController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\WebAuthController;
+use App\Http\Controllers\ZaloAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -310,12 +311,12 @@ Route::get('/clubs/{id}', [ClubController::class, 'show']);
 Route::put('/clubs/{id}', [ClubController::class, 'update']);
 Route::delete('/clubs/{id}', [ClubController::class, 'destroy']);
 
-// Members
-Route::get('/members', [MemberController::class, 'index']);
-Route::post('/members', [MemberController::class, 'store']);
-Route::get('/members/{id}', [MemberController::class, 'show']);
-Route::put('/members/{id}', [MemberController::class, 'update']);
-Route::delete('/members/{id}', [MemberController::class, 'destroy']);
+// Members - Đã thay thế bằng UserClub
+// Route::get('/members', [MemberController::class, 'index']);
+// Route::post('/members', [MemberController::class, 'store']);
+// Route::get('/members/{id}', [MemberController::class, 'show']);
+// Route::put('/members/{id}', [MemberController::class, 'update']);
+// Route::delete('/members/{id}', [MemberController::class, 'destroy']);
 
 // Club Members
 Route::get('/user-clubs', [UserClubController::class, 'index']);
@@ -353,6 +354,6 @@ Route::get('/matches/{id}', [MatchController::class, 'show']);
 Route::put('/matches/{id}', [MatchController::class, 'update']);
 Route::delete('/matches/{id}', [MatchController::class, 'destroy']);
 
-// User profile
+// User profile - Sử dụng zalo_gid để xác thực
 Route::get('/user/profile', [UserController::class, 'profile']);
 Route::put('/user/profile', [UserController::class, 'updateProfile']);
