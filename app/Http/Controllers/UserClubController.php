@@ -28,30 +28,42 @@ class UserClubController extends Controller
             
             // Nếu không có club_id, lấy club đầu tiên của user hiện tại
             if (!$clubId) {
-                $user = $request->user();
-                if ($user) {
-                    \Log::info('UserClubController::index - Looking for user clubs for user:', [
-                        'user_id' => $user->id,
-                        'user_name' => $user->name
-                    ]);
+                // Lấy zalo_gid từ request
+                $zaloGid = $request->input('zalo_gid') ?? $request->header('X-Zalo-GID');
+                
+                if ($zaloGid) {
+                    // Tìm user theo zalo_gid
+                    $user = User::where('zalo_gid', $zaloGid)->first();
                     
-                    $userClub = UserClub::where('user_id', $user->id)
-                        ->where('is_active', true)
-                        ->first();
-                    
-                    if ($userClub) {
-                        $clubId = $userClub->club_id;
-                        \Log::info('UserClubController::index - Found user club:', [
-                            'club_id' => $clubId,
-                            'club_name' => $userClub->club->name ?? 'unknown'
+                    if ($user) {
+                        \Log::info('UserClubController::index - Looking for user clubs for user:', [
+                            'user_id' => $user->id,
+                            'user_name' => $user->name,
+                            'zalo_gid' => $zaloGid
                         ]);
+                        
+                        $userClub = UserClub::where('user_id', $user->id)
+                            ->where('is_active', true)
+                            ->first();
+                        
+                        if ($userClub) {
+                            $clubId = $userClub->club_id;
+                            \Log::info('UserClubController::index - Found user club:', [
+                                'club_id' => $clubId,
+                                'club_name' => $userClub->club->name ?? 'unknown'
+                            ]);
+                        } else {
+                            \Log::warning('UserClubController::index - No user club found for user:', [
+                                'user_id' => $user->id
+                            ]);
+                        }
                     } else {
-                        \Log::warning('UserClubController::index - No user club found for user:', [
-                            'user_id' => $user->id
+                        \Log::warning('UserClubController::index - No user found with zalo_gid:', [
+                            'zalo_gid' => $zaloGid
                         ]);
                     }
                 } else {
-                    \Log::warning('UserClubController::index - No authenticated user found');
+                    \Log::warning('UserClubController::index - No zalo_gid provided');
                 }
             }
 
