@@ -95,7 +95,10 @@ class ClubController extends Controller
             // Lấy clubs từ bảng user_clubs
             $userClubs = UserClub::where('user_id', $userId)
                 ->where('is_active', true)
-                ->with(['club:id,name,sport,logo,address,is_setup,created_by,created_at,updated_at'])
+                ->with(['club' => function($query) {
+                    $query->withCount(['users', 'events', 'matches'])
+                          ->with(['users:id,name,avatar', 'events:id,title,start_date', 'matches:id,title,match_date']);
+                }])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -544,7 +547,8 @@ class ClubController extends Controller
 
             // Lấy danh sách tất cả câu lạc bộ
             $allClubs = Club::where('is_setup', true)
-                ->with(['creator:id,name,avatar'])
+                ->withCount(['users', 'events', 'matches'])
+                ->with(['creator:id,name,avatar', 'users:id,name,avatar', 'events:id,title,start_date', 'matches:id,title,match_date'])
                 ->get();
 
             // Lấy danh sách câu lạc bộ user đã tham gia
