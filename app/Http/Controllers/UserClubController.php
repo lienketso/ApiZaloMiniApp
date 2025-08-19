@@ -101,6 +101,7 @@ class UserClubController extends Controller
             $members = $userClubs->map(function ($userClub) {
                 return [
                     'id' => $userClub->id,
+                    'user_id' => $userClub->user_id, // Thêm user_id để frontend có thể map
                     'name' => $userClub->user->name ?? 'Không xác định',
                     'phone' => $userClub->user->phone ?? null,
                     'email' => $userClub->user->email ?? null,
@@ -112,6 +113,14 @@ class UserClubController extends Controller
                     'notes' => $userClub->notes,
                     'avatar' => null, // Có thể thêm avatar sau
                     'is_active' => $userClub->is_active,
+                    // Thêm thông tin user để frontend dễ sử dụng
+                    'user' => [
+                        'id' => $userClub->user->id,
+                        'name' => $userClub->user->name,
+                        'email' => $userClub->user->email,
+                        'avatar' => $userClub->user->avatar,
+                        'zalo_avatar' => $userClub->user->zalo_avatar,
+                    ]
                 ];
             });
 
