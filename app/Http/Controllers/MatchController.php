@@ -58,10 +58,24 @@ class MatchController extends Controller
                     \Log::info("MatchController::index - Processing match ID: {$match->id}");
                     
                     // Lấy players cho từng team riêng biệt để tránh ambiguous column
-                    // Sửa logic tìm team - tìm theo thứ tự thay vì tên
+                    // Sửa logic tìm team - tìm team có cầu thủ hoặc team mới nhất
                     $teams = $match->teams->sortBy('id');
-                    $teamA = $teams->first(); // Team đầu tiên (ID nhỏ hơn)
-                    $teamB = $teams->last();  // Team cuối cùng (ID lớn hơn)
+                    
+                    // Tìm team A có cầu thủ trước, nếu không có thì lấy team A mới nhất
+                    $teamAWithPlayers = $teams->where('name', 'like', '%A%')->filter(function($team) {
+                        $playerCount = \DB::table('team_players')->where('team_id', $team->id)->count();
+                        return $playerCount > 0;
+                    })->sortByDesc('id')->first();
+                    
+                    $teamA = $teamAWithPlayers ?: $teams->where('name', 'like', '%A%')->sortByDesc('id')->first();
+                    
+                    // Tìm team B có cầu thủ trước, nếu không có thì lấy team B mới nhất
+                    $teamBWithPlayers = $teams->where('name', 'like', '%B%')->filter(function($team) {
+                        $playerCount = \DB::table('team_players')->where('team_id', $team->id)->count();
+                        return $playerCount > 0;
+                    })->sortByDesc('id')->first();
+                    
+                    $teamB = $teamBWithPlayers ?: $teams->where('name', 'like', '%B%')->sortByDesc('id')->first();
                     
                     \Log::info("MatchController::index - Match {$match->id} teams found:", [
                         'total_teams' => $match->teams->count(),
