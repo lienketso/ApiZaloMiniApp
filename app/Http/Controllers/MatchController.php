@@ -529,6 +529,22 @@ class MatchController extends Controller
                 ], 404);
             }
 
+            // Kiểm tra xem match có teams chưa
+            if ($match->teams->isEmpty()) {
+                // Tạo teams mặc định nếu chưa có
+                Team::create([
+                    'match_id' => $match->id,
+                    'name' => 'Đội A',
+                ]);
+                Team::create([
+                    'match_id' => $match->id,
+                    'name' => 'Đội B',
+                ]);
+                
+                // Reload match với teams
+                $match->load('teams');
+            }
+
             DB::beginTransaction();
 
             // Xóa tất cả thành viên khỏi các đội
@@ -538,14 +554,41 @@ class MatchController extends Controller
 
             // Thêm thành viên cho đội A
             $teamA = $match->teams->where('name', 'like', '%A%')->first();
+            \Log::info('MatchController::updateTeams - Team A found:', ['team' => $teamA ? $teamA->toArray() : null]);
+            
             if ($teamA && !empty($teamAPlayers)) {
                 $teamA->players()->attach($teamAPlayers);
+                \Log::info('MatchController::updateTeams - Added players to Team A:', ['players' => $teamAPlayers]);
             }
 
             // Thêm thành viên cho đội B
             $teamB = $match->teams->where('name', 'like', '%B%')->first();
+            \Log::info('MatchController::updateTeams - Team B found:', ['team' => $teamB ? $teamB->toArray() : null]);
+            
             if ($teamB && !empty($teamBPlayers)) {
                 $teamB->players()->attach($teamBPlayers);
+                \Log::info('MatchController::updateTeams - Added players to Team B:', ['players' => $teamBPlayers]);
+            }
+
+            // Kiểm tra và tạo teams nếu chưa có
+            if (!$teamA) {
+                $teamA = Team::create([
+                    'match_id' => $match->id,
+                    'name' => 'Đội A',
+                ]);
+                if (!empty($teamAPlayers)) {
+                    $teamA->players()->attach($teamAPlayers);
+                }
+            }
+
+            if (!$teamB) {
+                $teamB = Team::create([
+                    'match_id' => $match->id,
+                    'name' => 'Đội B',
+                ]);
+                if (!empty($teamBPlayers)) {
+                    $teamB->players()->attach($teamBPlayers);
+                }
             }
 
             DB::commit();
