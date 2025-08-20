@@ -54,9 +54,19 @@ class MatchController extends Controller
                 ->orderBy('match_date', 'desc')
                 ->get()
                 ->map(function ($match) {
+                    // Debug logging
+                    \Log::info("MatchController::index - Processing match ID: {$match->id}");
+                    
                     // Lấy players cho từng team riêng biệt để tránh ambiguous column
                     $teamA = $match->teams->where('name', 'like', '%A%')->first();
                     $teamB = $match->teams->where('name', 'like', '%B%')->first();
+                    
+                    \Log::info("MatchController::index - Match {$match->id} teams:", [
+                        'teamA_id' => $teamA?->id,
+                        'teamB_id' => $teamB?->id,
+                        'teamA_name' => $teamA?->name,
+                        'teamB_name' => $teamB?->name
+                    ]);
                     
                     // Lấy players cho Team A
                     $teamAPlayers = [];
@@ -65,15 +75,22 @@ class MatchController extends Controller
                             ->join('users', 'team_players.user_id', '=', 'users.id')
                             ->where('team_players.team_id', $teamA->id)
                             ->select('users.id', 'users.name', 'users.avatar', 'users.phone')
-                            ->get()
-                            ->map(function ($player) {
-                                return [
-                                    'id' => $player->id,
-                                    'name' => $player->name,
-                                    'avatar' => $player->avatar,
-                                    'phone' => $player->phone
-                                ];
-                            });
+                            ->get();
+                        
+                        \Log::info("MatchController::index - Match {$match->id} Team A players:", [
+                            'team_id' => $teamA->id,
+                            'players_count' => $teamAPlayers->count(),
+                            'players' => $teamAPlayers->toArray()
+                        ]);
+                        
+                        $teamAPlayers = $teamAPlayers->map(function ($player) {
+                            return [
+                                'id' => $player->id,
+                                'name' => $player->name,
+                                'avatar' => $player->avatar,
+                                'phone' => $player->phone
+                            ];
+                        });
                     }
                     
                     // Lấy players cho Team B
@@ -83,15 +100,22 @@ class MatchController extends Controller
                             ->join('users', 'team_players.user_id', '=', 'users.id')
                             ->where('team_players.team_id', $teamB->id)
                             ->select('users.id', 'users.name', 'users.avatar', 'users.phone')
-                            ->get()
-                            ->map(function ($player) {
-                                return [
-                                    'id' => $player->id,
-                                    'name' => $player->name,
-                                    'avatar' => $player->avatar,
-                                    'phone' => $player->phone
-                                ];
-                            });
+                            ->get();
+                        
+                        \Log::info("MatchController::index - Match {$match->id} Team B players:", [
+                            'team_id' => $teamB->id,
+                            'players_count' => $teamBPlayers->count(),
+                            'players' => $teamBPlayers->toArray()
+                        ]);
+                        
+                        $teamBPlayers = $teamBPlayers->map(function ($player) {
+                            return [
+                                'id' => $player->id,
+                                'name' => $player->name,
+                                'avatar' => $player->avatar,
+                                'phone' => $player->phone
+                            ];
+                        });
                     }
                     
                     return [
