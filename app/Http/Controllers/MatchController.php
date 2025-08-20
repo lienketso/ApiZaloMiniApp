@@ -49,11 +49,51 @@ class MatchController extends Controller
                 ], 400);
             }
 
-            $matches = GameMatch::with(['teams.players', 'creator'])
+            $matches = GameMatch::with(['teams', 'creator'])
                 ->where('club_id', $clubId)
                 ->orderBy('match_date', 'desc')
                 ->get()
                 ->map(function ($match) {
+                    // Lấy players cho từng team riêng biệt để tránh ambiguous column
+                    $teamA = $match->teams->where('name', 'like', '%A%')->first();
+                    $teamB = $match->teams->where('name', 'like', '%B%')->first();
+                    
+                    // Lấy players cho Team A
+                    $teamAPlayers = [];
+                    if ($teamA) {
+                        $teamAPlayers = \DB::table('team_players')
+                            ->join('users', 'team_players.user_id', '=', 'users.id')
+                            ->where('team_players.team_id', $teamA->id)
+                            ->select('users.id', 'users.name', 'users.avatar', 'users.phone')
+                            ->get()
+                            ->map(function ($player) {
+                                return [
+                                    'id' => $player->id,
+                                    'name' => $player->name,
+                                    'avatar' => $player->avatar,
+                                    'phone' => $player->phone
+                                ];
+                            });
+                    }
+                    
+                    // Lấy players cho Team B
+                    $teamBPlayers = [];
+                    if ($teamB) {
+                        $teamBPlayers = \DB::table('team_players')
+                            ->join('users', 'team_players.user_id', '=', 'users.id')
+                            ->where('team_players.team_id', $teamB->id)
+                            ->select('users.id', 'users.name', 'users.avatar', 'users.phone')
+                            ->get()
+                            ->map(function ($player) {
+                                return [
+                                    'id' => $player->id,
+                                    'name' => $player->name,
+                                    'avatar' => $player->avatar,
+                                    'phone' => $player->phone
+                                ];
+                            });
+                    }
+                    
                     return [
                         'id' => $match->id,
                         'title' => $match->title,
@@ -66,32 +106,18 @@ class MatchController extends Controller
                         'createdBy' => $match->creator->name ?? 'Unknown',
                         'createdAt' => $match->created_at->format('Y-m-d'),
                         'teamA' => [
-                            'id' => $match->teams->where('name', 'like', '%A%')->first()?->id,
+                            'id' => $teamA?->id,
                             'name' => 'Đội A',
-                            'players' => $match->teams->where('name', 'like', '%A%')->first()?->players->map(function ($player) {
-                                return [
-                                    'id' => $player->id,
-                                    'name' => $player->name,
-                                    'avatar' => $player->avatar,
-                                    'phone' => $player->phone
-                                ];
-                            }) ?? [],
-                            'score' => $match->teams->where('name', 'like', '%A%')->first()?->score,
-                            'isWinner' => $match->teams->where('name', 'like', '%A%')->first()?->is_winner
+                            'players' => $teamAPlayers,
+                            'score' => $teamA?->score,
+                            'isWinner' => $teamA?->is_winner
                         ],
                         'teamB' => [
-                            'id' => $match->teams->where('name', 'like', '%B%')->first()?->id,
+                            'id' => $teamB?->id,
                             'name' => 'Đội B',
-                            'players' => $match->teams->where('name', 'like', '%B%')->first()?->players->map(function ($player) {
-                                return [
-                                    'id' => $player->id,
-                                    'name' => $player->name,
-                                    'avatar' => $player->avatar,
-                                    'phone' => $player->phone
-                                ];
-                            }) ?? [],
-                            'score' => $match->teams->where('name', 'like', '%B%')->first()?->score,
-                            'isWinner' => $match->teams->where('name', 'like', '%B%')->first()?->is_winner
+                            'players' => $teamBPlayers,
+                            'score' => $teamB?->score,
+                            'isWinner' => $teamB?->is_winner
                         ]
                     ];
                 });
