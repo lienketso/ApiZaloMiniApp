@@ -354,7 +354,7 @@ Route::get('/matches/{id}', [MatchController::class, 'show']);
 Route::put('/matches/{id}', [MatchController::class, 'update']);
 Route::delete('/matches/{id}', [MatchController::class, 'destroy']);
 Route::put('/matches/{id}/teams', [MatchController::class, 'updateTeams']);
-Route::get('/matches/{id}/club-members', [MatchController::class, 'getClubMembers']);
+Route::get('/matches/club-members', [MatchController::class, 'getClubMembers']);
 Route::post('/matches/{id}/start', [MatchController::class, 'startMatch']);
 Route::put('/matches/{id}/result', [MatchController::class, 'updateResult']);
 
