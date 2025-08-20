@@ -20,12 +20,32 @@ class MatchController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $clubId = $request->user()->club_id;
+            // Lấy club_id từ query parameter hoặc từ user hiện tại
+            $clubId = $request->query('club_id') ?? $request->input('club_id');
+            
+            // Nếu không có club_id từ request, thử lấy từ user đăng nhập qua zalo_gid
+            if (!$clubId) {
+                $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
+                
+                if ($zaloGid) {
+                    $user = \App\Models\User::where('zalo_gid', $zaloGid)->first();
+                    if ($user) {
+                        // Tìm club đầu tiên của user
+                        $userClub = \App\Models\UserClub::where('user_id', $user->id)
+                            ->where('is_active', true)
+                            ->first();
+                        if ($userClub) {
+                            $clubId = $userClub->club_id;
+                        }
+                    }
+                }
+            }
             
             if (!$clubId) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Bạn chưa thuộc club nào'
+                    'message' => 'Không thể xác định club. Vui lòng chọn club trước.',
+                    'data' => []
                 ], 400);
             }
 
@@ -111,13 +131,38 @@ class MatchController extends Controller
                 ], 422);
             }
 
-            $clubId = $request->user()->club_id;
+            // Lấy club_id từ request data hoặc từ user đăng nhập qua zalo_gid
+            $clubId = $request->input('club_id');
+            $userId = null;
+            
+            if (!$clubId) {
+                $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
+                
+                if ($zaloGid) {
+                    $user = \App\Models\User::where('zalo_gid', $zaloGid)->first();
+                    if ($user) {
+                        $userId = $user->id;
+                        // Tìm club đầu tiên của user
+                        $userClub = \App\Models\UserClub::where('user_id', $user->id)
+                            ->where('is_active', true)
+                            ->first();
+                        if ($userClub) {
+                            $clubId = $userClub->club_id;
+                        }
+                    }
+                }
+            }
             
             if (!$clubId) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Bạn chưa thuộc club nào'
+                    'message' => 'Không thể xác định club. Vui lòng chọn club trước.'
                 ], 400);
+            }
+            
+            // Nếu chưa có userId, lấy từ request hoặc default
+            if (!$userId) {
+                $userId = $request->input('created_by') ?? 1; // Default user ID
             }
 
             DB::beginTransaction();
@@ -132,7 +177,7 @@ class MatchController extends Controller
                 'description' => $request->description,
                 'status' => 'upcoming',
                 'bet_amount' => $request->betAmount,
-                'created_by' => $request->user()->id,
+                'created_by' => $userId,
             ]);
 
             // Tạo 2 đội mặc định
@@ -431,12 +476,30 @@ class MatchController extends Controller
     public function destroy(Request $request, $id): JsonResponse
     {
         try {
-            $clubId = $request->user()->club_id;
+            // Lấy club_id từ query parameter hoặc từ user đăng nhập qua zalo_gid
+            $clubId = $request->query('club_id') ?? $request->input('club_id');
+            
+            if (!$clubId) {
+                $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
+                
+                if ($zaloGid) {
+                    $user = \App\Models\User::where('zalo_gid', $zaloGid)->first();
+                    if ($user) {
+                        // Tìm club đầu tiên của user
+                        $userClub = \App\Models\UserClub::where('user_id', $user->id)
+                            ->where('is_active', true)
+                            ->first();
+                        if ($userClub) {
+                            $clubId = $userClub->club_id;
+                        }
+                    }
+                }
+            }
             
             if (!$clubId) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Bạn chưa thuộc club nào'
+                    'message' => 'Không thể xác định club. Vui lòng chọn club trước.'
                 ], 400);
             }
 
