@@ -520,9 +520,7 @@ class MatchController extends Controller
                 ], 400);
             }
 
-            $match = GameMatch::with(['teams' => function($query) {
-                $query->select('id', 'match_id', 'name', 'score', 'is_winner');
-            }])->where('club_id', $clubId)->find($id);
+            $match = GameMatch::where('club_id', $clubId)->find($id);
             
             if (!$match) {
                 return response()->json([
@@ -532,7 +530,8 @@ class MatchController extends Controller
             }
 
             // Kiểm tra xem match có teams chưa
-            if ($match->teams->isEmpty()) {
+            $teams = Team::where('match_id', $match->id)->get();
+            if ($teams->isEmpty()) {
                 // Tạo teams mặc định nếu chưa có
                 Team::create([
                     'match_id' => $match->id,
@@ -543,19 +542,19 @@ class MatchController extends Controller
                     'name' => 'Đội B',
                 ]);
                 
-                // Reload match với teams
-                $match->load('teams');
+                // Lấy teams mới tạo
+                $teams = Team::where('match_id', $match->id)->get();
             }
 
             DB::beginTransaction();
 
             // Xóa tất cả thành viên khỏi các đội
-            foreach ($match->teams as $team) {
+            foreach ($teams as $team) {
                 \DB::table('team_players')->where('team_id', $team->id)->delete();
             }
 
             // Thêm thành viên cho đội A
-            $teamA = $match->teams->where('name', 'like', '%A%')->first();
+            $teamA = $teams->where('name', 'like', '%A%')->first();
             \Log::info('MatchController::updateTeams - Team A found:', ['team' => $teamA ? $teamA->toArray() : null]);
             
             if ($teamA && !empty($teamAPlayers)) {
@@ -571,7 +570,7 @@ class MatchController extends Controller
             }
 
             // Thêm thành viên cho đội B
-            $teamB = $match->teams->where('name', 'like', '%B%')->first();
+            $teamB = $teams->where('name', 'like', '%B%')->first();
             \Log::info('MatchController::updateTeams - Team B found:', ['team' => $teamB ? $teamB->toArray() : null]);
             
             if ($teamB && !empty($teamBPlayers)) {
