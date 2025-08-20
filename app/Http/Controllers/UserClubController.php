@@ -50,20 +50,37 @@ class UserClubController extends Controller
                             $clubId = $userClub->club_id;
                             \Log::info('UserClubController::index - Found user club:', [
                                 'club_id' => $clubId,
-                                'club_name' => $userClub->club->name ?? 'unknown'
+                                'club_name' => $userClub->club ? $userClub->club->name : 'unknown'
                             ]);
                         } else {
                             \Log::warning('UserClubController::index - No user club found for user:', [
                                 'user_id' => $user->id
                             ]);
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Người dùng chưa tham gia club nào',
+                                'data' => [],
+                                'total' => 0
+                            ], 404);
                         }
                     } else {
                         \Log::warning('UserClubController::index - No user found with zalo_gid:', [
                             'zalo_gid' => $zaloGid
                         ]);
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Không tìm thấy người dùng với zalo_gid này',
+                            'data' => [],
+                            'total' => 0
+                        ], 404);
                     }
                 } else {
                     \Log::warning('UserClubController::index - No zalo_gid provided');
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Thiếu thông tin xác thực (zalo_gid)',
+                        'data' => []
+                    ], 400);
                 }
             }
 
@@ -76,6 +93,13 @@ class UserClubController extends Controller
                         'club_id' => $clubId,
                         'club_name' => $firstClub->name
                     ]);
+                } else {
+                    \Log::error('UserClubController::index - No clubs exist in system');
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Hệ thống chưa có club nào',
+                        'data' => []
+                    ], 404);
                 }
             }
 
@@ -83,7 +107,9 @@ class UserClubController extends Controller
                 \Log::error('UserClubController::index - No club found at all');
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không tìm thấy club'
+                    'message' => 'Không tìm thấy club',
+                    'data' => [],
+                    'total' => 0
                 ], 404);
             }
 
@@ -97,8 +123,27 @@ class UserClubController extends Controller
 
             \Log::info('UserClubController::index - Found user clubs:', ['count' => $userClubs->count()]);
 
+            // Nếu không có thành viên nào, trả về array rỗng
+            if ($userClubs->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'message' => 'Không có thành viên nào trong club',
+                    'total' => 0
+                ]);
+            }
+
             // Transform data để frontend dễ sử dụng
             $members = $userClubs->map(function ($userClub) {
+                // Kiểm tra xem user có tồn tại không
+                if (!$userClub->user) {
+                    \Log::warning('UserClubController::index - UserClub has no user:', [
+                        'user_club_id' => $userClub->id,
+                        'user_id' => $userClub->user_id
+                    ]);
+                    return null; // Bỏ qua user club không có user
+                }
+                
                 return [
                     'id' => $userClub->id,
                     'user_id' => $userClub->user_id, // Thêm user_id để frontend có thể map
@@ -122,22 +167,29 @@ class UserClubController extends Controller
                         'zalo_avatar' => $userClub->user->zalo_avatar,
                     ]
                 ];
-            });
+            })->filter(function ($member) {
+                return $member !== null; // Lọc bỏ các member null
+            })->values(); // Reset array keys
 
             return response()->json([
                 'success' => true,
-                'data' => $members
+                'data' => $members,
+                'message' => 'Tải danh sách thành viên thành công',
+                'total' => count($members)
             ]);
 
         } catch (\Exception $e) {
             \Log::error('UserClubController::index - Exception:', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
             ]);
             
             return response()->json([
                 'success' => false,
-                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+                'message' => 'Có lỗi xảy ra khi tải danh sách thành viên: ' . $e->getMessage(),
+                'data' => []
             ], 500);
         }
     }
