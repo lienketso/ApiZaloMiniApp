@@ -75,9 +75,14 @@ class MatchController extends Controller
                         'teams_names' => $teams->pluck('name')->toArray()
                     ]);
                     
-                    // Tìm team A và B đơn giản hơn
-                    $teamA = $teams->where('name', 'like', '%A%')->first();
-                    $teamB = $teams->where('name', 'like', '%B%')->first();
+                    // Tìm team A và B sử dụng filter thay vì where
+                    $teamA = $teams->filter(function($team) {
+                        return str_contains($team->name, 'A');
+                    })->first();
+                    
+                    $teamB = $teams->filter(function($team) {
+                        return str_contains($team->name, 'B');
+                    })->first();
                     
                     \Log::info("MatchController::index - Match {$match->id} teams found:", [
                         'teamA' => $teamA ? ['id' => $teamA->id, 'name' => $teamA->name] : null,
