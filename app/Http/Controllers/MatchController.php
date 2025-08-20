@@ -763,7 +763,7 @@ class MatchController extends Controller
                 ], 400);
             }
 
-            $match = GameMatch::with('teams')->where('club_id', $clubId)->find($id);
+            $match = GameMatch::where('club_id', $clubId)->find($id);
             
             if (!$match) {
                 return response()->json([
@@ -778,7 +778,8 @@ class MatchController extends Controller
             $match->update(['status' => 'completed']);
 
             // Cập nhật điểm số cho các đội
-            $teamA = $match->teams->where('name', 'like', '%A%')->first();
+            $teams = Team::where('match_id', $match->id)->get();
+            $teamA = $teams->where('name', 'like', '%A%')->first();
             if ($teamA) {
                 $teamA->update([
                     'score' => $request->teamAScore,
@@ -786,7 +787,7 @@ class MatchController extends Controller
                 ]);
             }
 
-            $teamB = $match->teams->where('name', 'like', '%B%')->first();
+            $teamB = $teams->where('name', 'like', '%B%')->first();
             if ($teamB) {
                 $teamB->update([
                     'score' => $request->teamBScore,
