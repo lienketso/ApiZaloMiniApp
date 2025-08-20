@@ -34,6 +34,47 @@ Route::get('/test', function () {
     ]);
 });
 
+// Test route để kiểm tra club members
+Route::get('/test-club-members', function (Request $request) {
+    try {
+        $clubId = $request->query('club_id');
+        if (!$clubId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'club_id is required'
+            ], 400);
+        }
+        
+        // Mock data cho test
+        $members = [
+            [
+                'id' => 1,
+                'name' => 'Nguyễn Văn A',
+                'avatar' => null,
+                'phone' => '0123456789',
+                'role' => 'member'
+            ],
+            [
+                'id' => 2,
+                'name' => 'Trần Thị B',
+                'avatar' => null,
+                'phone' => '0987654321',
+                'role' => 'admin'
+            ]
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'data' => $members
+        ]);
+    } catch (Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
 // Test route để kiểm tra middleware auth:sanctum
 Route::get('/test-auth', function (Request $request) {
     try {
