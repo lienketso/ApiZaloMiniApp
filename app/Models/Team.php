@@ -31,7 +31,7 @@ class Team extends Model
     public function players(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'team_players', 'team_id', 'user_id')
-            ->select(['users.id', 'users.name', 'users.avatar', 'users.phone']);
+            ->select(['users.id as user_id', 'users.name', 'users.avatar', 'users.phone']);
     }
 
     // Scopes
