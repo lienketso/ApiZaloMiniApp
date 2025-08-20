@@ -820,6 +820,115 @@ class MatchController extends Controller
     }
 
     /**
+     * Lấy thông tin chi tiết trận đấu
+     */
+    public function show(Request $request, $id): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'club_id' => 'required|integer|exists:clubs,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dữ liệu không hợp lệ',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Lấy club_id từ request, header hoặc từ zalo_gid
+            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
+            
+            if (!$clubId) {
+                $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
+                
+                if ($zaloGid) {
+                    $user = \App\Models\User::where('zalo_gid', $zaloGid)->first();
+                    if ($user) {
+                        // Tìm club đầu tiên của user
+                        $userClub = \App\Models\UserClub::where('user_id', $user->id)
+                            ->where('is_active', true)
+                            ->first();
+                        if ($userClub) {
+                            $clubId = $userClub->club_id;
+                        }
+                    }
+                }
+            }
+            
+            if (!$clubId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không thể xác định club. Vui lòng chọn club trước.'
+                ], 400);
+            }
+
+            $match = GameMatch::with(['teams.players', 'creator'])
+                ->where('club_id', $clubId)
+                ->find($id);
+            
+            if (!$match) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy trận đấu'
+                ], 404);
+            }
+
+            $matchData = [
+                'id' => $match->id,
+                'title' => $match->title,
+                'date' => $match->match_date->format('Y-m-d'),
+                'time' => $match->time,
+                'location' => $match->location,
+                'description' => $match->description,
+                'status' => $match->status,
+                'betAmount' => (float) $match->bet_amount,
+                'createdBy' => $match->creator->name ?? 'Unknown',
+                'createdAt' => $match->created_at->format('Y-m-d'),
+                'teamA' => [
+                    'id' => $match->teams->where('name', 'like', '%A%')->first()?->id,
+                    'name' => 'Đội A',
+                    'players' => $match->teams->where('name', 'like', '%A%')->first()?->players->map(function ($player) {
+                        return [
+                            'id' => $player->id,
+                            'name' => $player->name,
+                            'avatar' => $player->avatar,
+                            'phone' => $player->phone
+                        ];
+                    }) ?? [],
+                    'score' => $match->teams->where('name', 'like', '%A%')->first()?->score,
+                    'isWinner' => $match->teams->where('name', 'like', '%A%')->first()?->is_winner
+                ],
+                'teamB' => [
+                    'id' => $match->teams->where('name', 'like', '%B%')->first()?->id,
+                    'name' => 'Đội B',
+                    'players' => $match->teams->where('name', 'like', '%B%')->first()?->players->map(function ($player) {
+                        return [
+                            'id' => $player->id,
+                            'name' => $player->name,
+                            'avatar' => $player->avatar,
+                            'phone' => $player->phone
+                        ];
+                    }) ?? [],
+                    'score' => $match->teams->where('name', 'like', '%B%')->first()?->score,
+                    'isWinner' => $match->teams->where('name', 'like', '%B%')->first()?->is_winner
+                ]
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $matchData
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Lấy danh sách thành viên của club để chọn cho đội
      */
     public function getClubMembers(Request $request): JsonResponse
