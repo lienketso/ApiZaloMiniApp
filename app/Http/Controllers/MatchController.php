@@ -304,8 +304,8 @@ class MatchController extends Controller
             $validator = Validator::make($request->all(), [
                 'title' => 'required|string|max:255',
                 'date' => 'required|string',
-                'time' => 'nullable|string',
-                'location' => 'nullable|string',
+                'time' => 'nullable|string|max:10',
+                'location' => 'nullable|string|max:255',
                 'description' => 'nullable|string',
                 'betAmount' => 'required|numeric|min:0',
                 'club_id' => 'required|integer|exists:clubs,id',
@@ -322,10 +322,10 @@ class MatchController extends Controller
                 ], 422);
             }
 
-            // Lấy club_id từ request hoặc từ zalo_gid
-            $clubId = $request->input('club_id');
+            // Lấy club_id từ request, header hoặc từ zalo_gid
+            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
             
-            \Log::info('MatchController::update - Club ID from request:', ['club_id' => $clubId]);
+            \Log::info('MatchController::update - Club ID from request/header:', ['club_id' => $clubId]);
             
             if (!$clubId) {
                 $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
@@ -384,19 +384,45 @@ class MatchController extends Controller
             \Log::info('MatchController::update - Updating match with data:', [
                 'title' => $request->title,
                 'match_date' => $matchDate,
-                'bet_amount' => $request->betAmount
-            ]);
-
-            $match->update([
-                'title' => $request->title,
-                'match_date' => $matchDate,
                 'time' => $request->time,
                 'location' => $request->location,
                 'description' => $request->description,
-                'bet_amount' => $request->betAmount,
+                'bet_amount' => $request->betAmount
             ]);
 
-            \Log::info('MatchController::update - Match updated successfully');
+            try {
+                $updateData = [
+                    'title' => $request->title,
+                    'match_date' => $matchDate,
+                    'time' => $request->time,
+                    'location' => $request->location,
+                    'description' => $request->description,
+                    'bet_amount' => $request->betAmount,
+                ];
+                
+                \Log::info('MatchController::update - Update data prepared:', $updateData);
+                
+                $result = $match->update($updateData);
+                
+                \Log::info('MatchController::update - Update result:', ['result' => $result]);
+                
+                if ($result) {
+                    \Log::info('MatchController::update - Match updated successfully');
+                } else {
+                    \Log::warning('MatchController::update - Update returned false');
+                }
+                
+                // Refresh the model to get updated data
+                $match->refresh();
+                
+            } catch (\Exception $e) {
+                \Log::error('MatchController::update - Error during update:', [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]);
+                throw $e;
+            }
 
             return response()->json([
                 'success' => true,
@@ -528,8 +554,8 @@ class MatchController extends Controller
                 ], 422);
             }
 
-            // Lấy club_id từ request hoặc từ zalo_gid
-            $clubId = $request->input('club_id');
+            // Lấy club_id từ request, header hoặc từ zalo_gid
+            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
             
             if (!$clubId) {
                 $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
@@ -613,8 +639,8 @@ class MatchController extends Controller
                 ], 422);
             }
 
-            // Lấy club_id từ request hoặc từ zalo_gid
-            $clubId = $request->input('club_id');
+            // Lấy club_id từ request, header hoặc từ zalo_gid
+            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
             
             if (!$clubId) {
                 $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
@@ -704,8 +730,8 @@ class MatchController extends Controller
                 ], 422);
             }
 
-            // Lấy club_id từ request hoặc từ zalo_gid
-            $clubId = $request->input('club_id');
+            // Lấy club_id từ request, header hoặc từ zalo_gid
+            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
             
             if (!$clubId) {
                 $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
@@ -772,8 +798,8 @@ class MatchController extends Controller
                 ], 422);
             }
 
-            // Lấy club_id từ request hoặc từ zalo_gid
-            $clubId = $request->input('club_id');
+            // Lấy club_id từ request, header hoặc từ zalo_gid
+            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
             
             if (!$clubId) {
                 $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
