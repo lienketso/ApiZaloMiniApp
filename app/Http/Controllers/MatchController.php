@@ -68,21 +68,14 @@ class MatchController extends Controller
                         'teams' => $teams->map(function($t) { return ['id' => $t->id, 'name' => $t->name]; })->toArray()
                     ]);
                     
-                    // Tìm team A có cầu thủ trước, nếu không có thì lấy team A mới nhất
-                    $teamAWithPlayers = $teams->where('name', 'like', '%A%')->filter(function($team) {
-                        $playerCount = \DB::table('team_players')->where('team_id', $team->id)->count();
-                        return $playerCount > 0;
-                    })->first();
+                    // Tìm team A và B đơn giản hơn
+                    $teamA = $teams->where('name', 'like', '%A%')->first();
+                    $teamB = $teams->where('name', 'like', '%B%')->first();
                     
-                    $teamA = $teamAWithPlayers ?: $teams->where('name', 'like', '%A%')->first();
-                    
-                    // Tìm team B có cầu thủ trước, nếu không có thì lấy team B mới nhất
-                    $teamBWithPlayers = $teams->where('name', 'like', '%B%')->filter(function($team) {
-                        $playerCount = \DB::table('team_players')->where('team_id', $team->id)->count();
-                        return $playerCount > 0;
-                    })->first();
-                    
-                    $teamB = $teamBWithPlayers ?: $teams->where('name', 'like', '%B%')->first();
+                    \Log::info("MatchController::index - Match {$match->id} teams found:", [
+                        'teamA' => $teamA ? ['id' => $teamA->id, 'name' => $teamA->name] : null,
+                        'teamB' => $teamB ? ['id' => $teamB->id, 'name' => $teamB->name] : null
+                    ]);
                     
                     \Log::info("MatchController::index - Match {$match->id} teams selected:", [
                         'teamA_selected' => $teamA ? ['id' => $teamA->id, 'name' => $teamA->name] : null,
