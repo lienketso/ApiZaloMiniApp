@@ -73,7 +73,7 @@ class MatchController extends Controller
                                     'id' => $player->id,
                                     'name' => $player->name,
                                     'avatar' => $player->avatar,
-                                    'role' => $player->role
+                                    'phone' => $player->phone
                                 ];
                             }) ?? [],
                             'score' => $match->teams->where('name', 'like', '%A%')->first()?->score,
@@ -87,7 +87,7 @@ class MatchController extends Controller
                                     'id' => $player->id,
                                     'name' => $player->name,
                                     'avatar' => $player->avatar,
-                                    'role' => $player->role
+                                    'phone' => $player->phone
                                 ];
                             }) ?? [],
                             'score' => $match->teams->where('name', 'like', '%B%')->first()?->score,
@@ -453,8 +453,8 @@ class MatchController extends Controller
             $validator = Validator::make($request->all(), [
                 'teamAPlayers' => 'array',
                 'teamBPlayers' => 'array',
-                'teamAPlayers.*' => 'exists:members,id',
-                'teamBPlayers.*' => 'exists:members,id',
+                'teamAPlayers.*' => 'exists:users,id',
+                'teamBPlayers.*' => 'exists:users,id',
                 'club_id' => 'required|integer|exists:clubs,id',
             ]);
 
@@ -463,6 +463,33 @@ class MatchController extends Controller
                     'success' => false,
                     'message' => 'Dữ liệu không hợp lệ',
                     'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Validation số lượng cầu thủ
+            $teamAPlayers = $request->teamAPlayers ?? [];
+            $teamBPlayers = $request->teamBPlayers ?? [];
+
+            if (count($teamAPlayers) < 1 || count($teamAPlayers) > 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đội A phải có từ 1 đến 2 cầu thủ'
+                ], 422);
+            }
+
+            if (count($teamBPlayers) < 1 || count($teamBPlayers) > 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đội B phải có từ 1 đến 2 cầu thủ'
+                ], 422);
+            }
+
+            // Kiểm tra cầu thủ không được ở cả 2 đội
+            $duplicatePlayers = array_intersect($teamAPlayers, $teamBPlayers);
+            if (!empty($duplicatePlayers)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cầu thủ không thể ở cả 2 đội'
                 ], 422);
             }
 
@@ -511,21 +538,33 @@ class MatchController extends Controller
 
             // Thêm thành viên cho đội A
             $teamA = $match->teams->where('name', 'like', '%A%')->first();
-            if ($teamA && $request->teamAPlayers) {
-                $teamA->players()->attach($request->teamAPlayers);
+            if ($teamA && !empty($teamAPlayers)) {
+                $teamA->players()->attach($teamAPlayers);
             }
 
             // Thêm thành viên cho đội B
             $teamB = $match->teams->where('name', 'like', '%B%')->first();
-            if ($teamB && $request->teamBPlayers) {
-                $teamB->players()->attach($request->teamBPlayers);
+            if ($teamB && !empty($teamBPlayers)) {
+                $teamB->players()->attach($teamBPlayers);
             }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cập nhật thành viên thành công'
+                'message' => 'Cập nhật thành viên thành công',
+                'data' => [
+                    'teamA' => [
+                        'id' => $teamA->id,
+                        'name' => $teamA->name,
+                        'players' => $teamA->players()->select('id', 'name', 'avatar')->get()
+                    ],
+                    'teamB' => [
+                        'id' => $teamB->id,
+                        'name' => $teamB->name,
+                        'players' => $teamB->players()->select('id', 'name', 'avatar')->get()
+                    ]
+                ]
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -831,23 +870,24 @@ class MatchController extends Controller
                 ], 400);
             }
 
-            $members = User::whereHas('clubs', function($query) use ($clubId) {
+            $users = User::whereHas('clubs', function($query) use ($clubId) {
                     $query->where('club_id', $clubId);
                 })
-                ->select('id', 'name', 'avatar')
+                ->select('id', 'name', 'avatar', 'phone')
                 ->get()
                 ->map(function ($user) {
                     return [
                         'id' => $user->id,
                         'name' => $user->name,
                         'avatar' => $user->avatar,
+                        'phone' => $user->phone,
                         'role' => $user->clubs->first()->pivot->role ?? 'member'
                     ];
                 });
 
             return response()->json([
                 'success' => true,
-                'data' => $members
+                'data' => $users
             ]);
         } catch (\Exception $e) {
             return response()->json([

@@ -50,15 +50,15 @@ return new class extends Migration
         Schema::create('team_players', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('team_id');
-            $table->unsignedBigInteger('member_id');
+            $table->unsignedBigInteger('user_id');
             $table->timestamps();
 
             // Foreign keys
             $table->foreign('team_id')->references('id')->on('teams')->onDelete('cascade');
-            $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
 
-            // Đảm bảo mỗi member chỉ có trong 1 team của 1 match
-            $table->unique(['team_id', 'member_id']);
+            // Đảm bảo mỗi user chỉ có trong 1 team của 1 match
+            $table->unique(['team_id', 'user_id']);
         });
     }
 
