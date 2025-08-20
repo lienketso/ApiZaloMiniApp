@@ -641,12 +641,20 @@ class MatchController extends Controller
                     'teamA' => [
                         'id' => $teamA->id,
                         'name' => $teamA->name,
-                        'players' => $teamA->players()->select('id', 'name', 'avatar')->get()
+                        'players' => \DB::table('team_players')
+                            ->join('users', 'team_players.user_id', '=', 'users.id')
+                            ->where('team_players.team_id', $teamA->id)
+                            ->select('users.id', 'users.name', 'users.avatar')
+                            ->get()
                     ],
                     'teamB' => [
                         'id' => $teamB->id,
                         'name' => $teamB->name,
-                        'players' => $teamB->players()->select('id', 'name', 'avatar')->get()
+                        'players' => \DB::table('team_players')
+                            ->join('users', 'team_players.user_id', '=', 'users.id')
+                            ->where('team_players.team_id', $teamB->id)
+                            ->select('users.id', 'users.name', 'users.avatar')
+                            ->get()
                     ]
                 ]
             ]);
