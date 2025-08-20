@@ -114,13 +114,22 @@ class MatchController extends Controller
     public function store(Request $request): JsonResponse
     {
         try {
+            // Debug: Log tất cả request data
+            \Log::info('MatchController::store - Request data:', [
+                'all_input' => $request->all(),
+                'headers' => $request->headers->all(),
+                'zalo_gid_header' => $request->header('X-Zalo-GID'),
+                'zalo_gid_input' => $request->input('zalo_gid')
+            ]);
+            
             $validator = Validator::make($request->all(), [
                 'title' => 'required|string|max:255',
-                'date' => 'required|date',
+                'date' => 'required|string', // Frontend gửi string, không phải date object
                 'time' => 'nullable|string',
                 'location' => 'nullable|string',
                 'description' => 'nullable|string',
                 'betAmount' => 'required|numeric|min:0',
+                'club_id' => 'required|integer|exists:clubs,id',
             ]);
 
             if ($validator->fails()) {
@@ -165,10 +174,8 @@ class MatchController extends Controller
                 $userId = $request->input('created_by') ?? 1; // Default user ID
             }
 
-            DB::beginTransaction();
-
-            // Tạo trận đấu
-            $match = GameMatch::create([
+            // Debug: Log data trước khi tạo match
+            \Log::info('MatchController::store - Creating match with data:', [
                 'club_id' => $clubId,
                 'title' => $request->title,
                 'match_date' => $request->date,
@@ -180,16 +187,81 @@ class MatchController extends Controller
                 'created_by' => $userId,
             ]);
 
-            // Tạo 2 đội mặc định
-            Team::create([
+            // Validate và format date
+            $matchDate = $request->date;
+            if (is_string($matchDate)) {
+                // Nếu date là string, thử parse thành date
+                try {
+                    $parsedDate = \Carbon\Carbon::parse($matchDate);
+                    $matchDate = $parsedDate->format('Y-m-d');
+                } catch (\Exception $e) {
+                    \Log::warning('MatchController::store - Could not parse date:', [
+                        'original_date' => $matchDate,
+                        'error' => $e->getMessage()
+                    ]);
+                    // Sử dụng date gốc nếu không parse được
+                }
+            }
+
+            DB::beginTransaction();
+
+            // Tạo trận đấu
+            try {
+                $match = GameMatch::create([
+                    'club_id' => $clubId,
+                    'title' => $request->title,
+                    'match_date' => $matchDate, // Sử dụng date đã format
+                    'time' => $request->time,
+                    'location' => $request->location,
+                    'description' => $request->description,
+                    'status' => 'upcoming',
+                    'bet_amount' => $request->betAmount, // Frontend gửi 'betAmount', map thành 'bet_amount'
+                    'created_by' => $userId,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('MatchController::store - Error creating match:', [
+                    'club_id' => $clubId,
+                    'title' => $request->title,
+                    'match_date' => $matchDate,
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]);
+                throw $e; // Re-throw để catch block chính xử lý
+            }
+
+            // Debug: Log match created
+            \Log::info('MatchController::store - Match created successfully:', [
                 'match_id' => $match->id,
-                'name' => 'Đội A',
+                'match_title' => $match->title
             ]);
 
-            Team::create([
-                'match_id' => $match->id,
-                'name' => 'Đội B',
-            ]);
+            // Tạo 2 đội mặc định
+            try {
+                $teamA = Team::create([
+                    'match_id' => $match->id,
+                    'name' => 'Đội A',
+                ]);
+
+                $teamB = Team::create([
+                    'match_id' => $match->id,
+                    'name' => 'Đội B',
+                ]);
+
+                // Debug: Log teams created
+                \Log::info('MatchController::store - Teams created successfully:', [
+                    'team_a_id' => $teamA->id,
+                    'team_b_id' => $teamB->id
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('MatchController::store - Error creating teams:', [
+                    'match_id' => $match->id,
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]);
+                throw $e; // Re-throw để catch block chính xử lý
+            }
 
             DB::commit();
 
@@ -200,6 +272,15 @@ class MatchController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            // Debug: Log exception details
+            \Log::error('MatchController::store - Exception occurred:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
