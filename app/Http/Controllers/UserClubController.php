@@ -19,9 +19,14 @@ class UserClubController extends Controller
             // Lấy club_id từ request query hoặc body
             $clubId = $request->input('club_id') ?? $request->query('club_id');
             
-            // Debug: Log thông tin
-            \Log::info('UserClubController::index - Request data:', [
-                'club_id_from_request' => $clubId,
+            // Debug: Log tất cả thông tin request
+            \Log::info('UserClubController::index - Full Request debug:', [
+                'club_id_from_input' => $request->input('club_id'),
+                'club_id_from_query' => $request->query('club_id'),
+                'club_id_final' => $clubId,
+                'all_input' => $request->all(),
+                'query_string' => $request->getQueryString(),
+                'headers' => $request->headers->all(),
                 'user_authenticated' => $request->user() ? 'yes' : 'no',
                 'user_id' => $request->user() ? $request->user()->id : null
             ]);
@@ -32,25 +37,39 @@ class UserClubController extends Controller
                 $zaloGid = $request->input('zalo_gid') ?? $request->header('X-Zalo-GID');
                 
                 if ($zaloGid) {
+                    \Log::info('UserClubController::index - Searching for user with zalo_gid:', [
+                        'zalo_gid' => $zaloGid
+                    ]);
+                    
                     // Tìm user theo zalo_gid
                     $user = User::where('zalo_gid', $zaloGid)->first();
                     
                     if ($user) {
-                        \Log::info('UserClubController::index - Looking for user clubs for user:', [
+                        \Log::info('UserClubController::index - Found user, looking for user clubs:', [
                             'user_id' => $user->id,
                             'user_name' => $user->name,
+                            'user_email' => $user->email,
                             'zalo_gid' => $zaloGid
                         ]);
                         
                         $userClub = UserClub::where('user_id', $user->id)
                             ->where('is_active', true)
+                            ->with('club')
                             ->first();
                         
-                        if ($userClub) {
+                        \Log::info('UserClubController::index - UserClub query result:', [
+                            'user_club_found' => $userClub ? 'yes' : 'no',
+                            'user_club_id' => $userClub ? $userClub->id : null,
+                            'user_club_club_id' => $userClub ? $userClub->club_id : null,
+                            'club_loaded' => $userClub && $userClub->club ? 'yes' : 'no',
+                            'club_name' => $userClub && $userClub->club ? $userClub->club->name : null
+                        ]);
+                        
+                        if ($userClub && isset($userClub->club_id)) {
                             $clubId = $userClub->club_id;
                             \Log::info('UserClubController::index - Found user club:', [
                                 'club_id' => $clubId,
-                                'club_name' => $userClub->club ? $userClub->club->name : 'unknown'
+                                'user_club_id' => $userClub->id
                             ]);
                         } else {
                             \Log::warning('UserClubController::index - No user club found for user:', [
@@ -135,38 +154,47 @@ class UserClubController extends Controller
 
             // Transform data để frontend dễ sử dụng
             $members = $userClubs->map(function ($userClub) {
-                // Kiểm tra xem user có tồn tại không
-                if (!$userClub->user) {
-                    \Log::warning('UserClubController::index - UserClub has no user:', [
-                        'user_club_id' => $userClub->id,
-                        'user_id' => $userClub->user_id
+                try {
+                    // Kiểm tra xem user có tồn tại không
+                    if (!$userClub->user) {
+                        \Log::warning('UserClubController::index - UserClub has no user:', [
+                            'user_club_id' => $userClub->id,
+                            'user_id' => $userClub->user_id
+                        ]);
+                        return null; // Bỏ qua user club không có user
+                    }
+                    
+                    return [
+                        'id' => $userClub->id,
+                        'user_id' => $userClub->user_id, // Thêm user_id để frontend có thể map
+                        'name' => $userClub->user->name ?? 'Không xác định',
+                        'phone' => $userClub->user->phone ?? null,
+                        'email' => $userClub->user->email ?? null,
+                        'role' => $userClub->role,
+                        'club_role' => $userClub->role,
+                        'joined_date' => $userClub->joined_date,
+                        'created_at' => $userClub->created_at,
+                        'updated_at' => $userClub->updated_at,
+                        'notes' => $userClub->notes,
+                        'avatar' => null, // Có thể thêm avatar sau
+                        'is_active' => $userClub->is_active,
+                        // Thêm thông tin user để frontend dễ sử dụng
+                        'user' => [
+                            'id' => $userClub->user->id,
+                            'name' => $userClub->user->name,
+                            'email' => $userClub->user->email,
+                            'avatar' => $userClub->user->avatar ?? null,
+                            'zalo_avatar' => $userClub->user->zalo_avatar ?? null,
+                        ]
+                    ];
+                } catch (\Exception $e) {
+                    \Log::error('UserClubController::index - Error in transform:', [
+                        'user_club_id' => $userClub->id ?? 'unknown',
+                        'error' => $e->getMessage(),
+                        'line' => $e->getLine()
                     ]);
-                    return null; // Bỏ qua user club không có user
+                    return null;
                 }
-                
-                return [
-                    'id' => $userClub->id,
-                    'user_id' => $userClub->user_id, // Thêm user_id để frontend có thể map
-                    'name' => $userClub->user->name ?? 'Không xác định',
-                    'phone' => $userClub->user->phone ?? null,
-                    'email' => $userClub->user->email ?? null,
-                    'role' => $userClub->role,
-                    'club_role' => $userClub->role,
-                    'joined_date' => $userClub->joined_date,
-                    'created_at' => $userClub->created_at,
-                    'updated_at' => $userClub->updated_at,
-                    'notes' => $userClub->notes,
-                    'avatar' => null, // Có thể thêm avatar sau
-                    'is_active' => $userClub->is_active,
-                    // Thêm thông tin user để frontend dễ sử dụng
-                    'user' => [
-                        'id' => $userClub->user->id,
-                        'name' => $userClub->user->name,
-                        'email' => $userClub->user->email,
-                        'avatar' => $userClub->user->avatar,
-                        'zalo_avatar' => $userClub->user->zalo_avatar,
-                    ]
-                ];
             })->filter(function ($member) {
                 return $member !== null; // Lọc bỏ các member null
             })->values(); // Reset array keys
