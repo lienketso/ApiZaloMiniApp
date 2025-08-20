@@ -77,6 +77,28 @@ class MatchController extends Controller
                         'teamB_name' => $teamB?->name
                     ]);
                     
+                    // Nếu không có teams, tạo teams mặc định
+                    if (!$teamA || !$teamB) {
+                        \Log::warning("MatchController::index - Match {$match->id} missing teams, creating default teams");
+                        
+                        // Tạo teams mặc định nếu chưa có
+                        if (!$teamA) {
+                            $teamA = Team::create([
+                                'match_id' => $match->id,
+                                'name' => 'Đội A'
+                            ]);
+                            \Log::info("MatchController::index - Created default Team A for match {$match->id}: {$teamA->id}");
+                        }
+                        
+                        if (!$teamB) {
+                            $teamB = Team::create([
+                                'match_id' => $match->id,
+                                'name' => 'Đội B'
+                            ]);
+                            \Log::info("MatchController::index - Created default Team B for match {$match->id}: {$teamB->id}");
+                        }
+                    }
+                    
                     // Lấy players cho Team A
                     $teamAPlayers = [];
                     if ($teamA) {
