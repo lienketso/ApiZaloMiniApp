@@ -402,3 +402,31 @@ Route::get('/club-members', function (Request $request) {
         ], 500);
     }
 });
+
+// Debug route để kiểm tra teams
+Route::get('/debug/teams/{matchId}', function ($matchId) {
+    try {
+        $teams = DB::table('teams')
+            ->where('match_id', $matchId)
+            ->get();
+            
+        $teamPlayers = DB::table('team_players')
+            ->join('users', 'team_players.user_id', '=', 'users.id')
+            ->whereIn('team_players.team_id', $teams->pluck('id'))
+            ->select('team_players.team_id', 'users.id as user_id', 'users.name', 'users.avatar')
+            ->get();
+            
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'teams' => $teams,
+                'team_players' => $teamPlayers
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ], 500);
+    }
+});

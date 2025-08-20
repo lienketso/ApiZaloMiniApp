@@ -58,8 +58,17 @@ class MatchController extends Controller
                     \Log::info("MatchController::index - Processing match ID: {$match->id}");
                     
                     // Lấy players cho từng team riêng biệt để tránh ambiguous column
-                    $teamA = $match->teams->where('name', 'like', '%A%')->first();
-                    $teamB = $match->teams->where('name', 'like', '%B%')->first();
+                    // Sửa logic tìm team - tìm theo thứ tự thay vì tên
+                    $teams = $match->teams->sortBy('id');
+                    $teamA = $teams->first(); // Team đầu tiên (ID nhỏ hơn)
+                    $teamB = $teams->last();  // Team cuối cùng (ID lớn hơn)
+                    
+                    \Log::info("MatchController::index - Match {$match->id} teams found:", [
+                        'total_teams' => $match->teams->count(),
+                        'teams' => $match->teams->map(function($t) { return ['id' => $t->id, 'name' => $t->name]; })->toArray(),
+                        'teamA_selected' => $teamA ? ['id' => $teamA->id, 'name' => $teamA->name] : null,
+                        'teamB_selected' => $teamB ? ['id' => $teamB->id, 'name' => $teamB->name] : null
+                    ]);
                     
                     \Log::info("MatchController::index - Match {$match->id} teams:", [
                         'teamA_id' => $teamA?->id,
