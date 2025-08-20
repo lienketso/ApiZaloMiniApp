@@ -294,16 +294,27 @@ class MatchController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         try {
+            // Debug: Log request data
+            \Log::info('MatchController::update - Request data:', [
+                'id' => $id,
+                'request_data' => $request->all(),
+                'headers' => $request->headers->all()
+            ]);
+
             $validator = Validator::make($request->all(), [
                 'title' => 'required|string|max:255',
-                'date' => 'required|date',
+                'date' => 'required|string',
                 'time' => 'nullable|string',
                 'location' => 'nullable|string',
                 'description' => 'nullable|string',
                 'betAmount' => 'required|numeric|min:0',
+                'club_id' => 'required|integer|exists:clubs,id',
             ]);
 
             if ($validator->fails()) {
+                \Log::warning('MatchController::update - Validation failed:', [
+                    'errors' => $validator->errors()
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Dữ liệu không hợp lệ',
@@ -311,32 +322,81 @@ class MatchController extends Controller
                 ], 422);
             }
 
-            $clubId = $request->user()->club_id;
+            // Lấy club_id từ request hoặc từ zalo_gid
+            $clubId = $request->input('club_id');
+            
+            \Log::info('MatchController::update - Club ID from request:', ['club_id' => $clubId]);
             
             if (!$clubId) {
+                $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
+                
+                \Log::info('MatchController::update - Zalo GID:', ['zalo_gid' => $zaloGid]);
+                
+                if ($zaloGid) {
+                    $user = \App\Models\User::where('zalo_gid', $zaloGid)->first();
+                    if ($user) {
+                        \Log::info('MatchController::update - User found:', ['user_id' => $user->id]);
+                        // Tìm club đầu tiên của user
+                        $userClub = \App\Models\UserClub::where('user_id', $user->id)
+                            ->where('is_active', true)
+                            ->first();
+                        if ($userClub) {
+                            $clubId = $userClub->club_id;
+                            \Log::info('MatchController::update - UserClub found:', ['club_id' => $clubId]);
+                        } else {
+                            \Log::warning('MatchController::update - No active UserClub found for user:', ['user_id' => $user->id]);
+                        }
+                    } else {
+                        \Log::warning('MatchController::update - No user found for zalo_gid:', ['zalo_gid' => $zaloGid]);
+                    }
+                }
+            }
+            
+            if (!$clubId) {
+                \Log::error('MatchController::update - No club_id determined');
                 return response()->json([
                     'success' => false,
-                    'message' => 'Bạn chưa thuộc club nào'
+                    'message' => 'Không thể xác định club. Vui lòng chọn club trước.'
                 ], 400);
             }
 
             $match = GameMatch::where('club_id', $clubId)->find($id);
             
             if (!$match) {
+                \Log::warning('MatchController::update - Match not found:', [
+                    'match_id' => $id,
+                    'club_id' => $clubId
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy trận đấu'
                 ], 404);
             }
 
+            \Log::info('MatchController::update - Match found:', [
+                'match_id' => $match->id,
+                'match_title' => $match->title
+            ]);
+
+            // Format date properly
+            $matchDate = \Carbon\Carbon::parse($request->date);
+
+            \Log::info('MatchController::update - Updating match with data:', [
+                'title' => $request->title,
+                'match_date' => $matchDate,
+                'bet_amount' => $request->betAmount
+            ]);
+
             $match->update([
                 'title' => $request->title,
-                'match_date' => $request->date,
+                'match_date' => $matchDate,
                 'time' => $request->time,
                 'location' => $request->location,
                 'description' => $request->description,
                 'bet_amount' => $request->betAmount,
             ]);
+
+            \Log::info('MatchController::update - Match updated successfully');
 
             return response()->json([
                 'success' => true,
@@ -344,6 +404,13 @@ class MatchController extends Controller
                 'data' => $match
             ]);
         } catch (\Exception $e) {
+            \Log::error('MatchController::update - Exception occurred:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
