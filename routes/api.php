@@ -34,46 +34,7 @@ Route::get('/test', function () {
     ]);
 });
 
-// Test route để kiểm tra club members
-Route::get('/test-club-members', function (Request $request) {
-    try {
-        $clubId = $request->query('club_id');
-        if (!$clubId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'club_id is required'
-            ], 400);
-        }
-        
-        // Mock data cho test
-        $members = [
-            [
-                'id' => 1,
-                'name' => 'Nguyễn Văn A',
-                'avatar' => null,
-                'phone' => '0123456789',
-                'role' => 'member'
-            ],
-            [
-                'id' => 2,
-                'name' => 'Trần Thị B',
-                'avatar' => null,
-                'phone' => '0987654321',
-                'role' => 'admin'
-            ]
-        ];
-        
-        return response()->json([
-            'success' => true,
-            'data' => $members
-        ]);
-    } catch (Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error: ' . $e->getMessage()
-        ], 500);
-    }
-});
+
 
 // Test route để kiểm tra middleware auth:sanctum
 Route::get('/test-auth', function (Request $request) {
@@ -402,3 +363,42 @@ Route::put('/matches/{id}/result', [MatchController::class, 'updateResult']);
 // User profile - Sử dụng zalo_gid để xác thực
 Route::get('/user/profile', [UserController::class, 'profile']);
 Route::put('/user/profile', [UserController::class, 'updateProfile']);
+
+// API để lấy club members
+Route::get('/club-members', function (Request $request) {
+    try {
+        $clubId = $request->query('club_id');
+        if (!$clubId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'club_id is required'
+            ], 400);
+        }
+        
+        // Lấy users thuộc club
+        $users = \App\Models\User::whereHas('clubs', function($query) use ($clubId) {
+                $query->where('club_id', $clubId);
+            })
+            ->select('id', 'name', 'avatar', 'phone')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'avatar' => $user->avatar,
+                    'phone' => $user->phone,
+                    'role' => $user->clubs->first()->pivot->role ?? 'member'
+                ];
+            });
+        
+        return response()->json([
+            'success' => true,
+            'data' => $users
+        ]);
+    } catch (Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ], 500);
+    }
+});
