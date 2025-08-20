@@ -549,7 +549,7 @@ class MatchController extends Controller
 
             // Xóa tất cả thành viên khỏi các đội
             foreach ($match->teams as $team) {
-                $team->players()->detach();
+                \DB::table('team_players')->where('team_id', $team->id)->delete();
             }
 
             // Thêm thành viên cho đội A
@@ -557,7 +557,14 @@ class MatchController extends Controller
             \Log::info('MatchController::updateTeams - Team A found:', ['team' => $teamA ? $teamA->toArray() : null]);
             
             if ($teamA && !empty($teamAPlayers)) {
-                $teamA->players()->attach($teamAPlayers);
+                foreach ($teamAPlayers as $playerId) {
+                    \DB::table('team_players')->insert([
+                        'team_id' => $teamA->id,
+                        'user_id' => $playerId,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                }
                 \Log::info('MatchController::updateTeams - Added players to Team A:', ['players' => $teamAPlayers]);
             }
 
@@ -566,7 +573,14 @@ class MatchController extends Controller
             \Log::info('MatchController::updateTeams - Team B found:', ['team' => $teamB ? $teamB->toArray() : null]);
             
             if ($teamB && !empty($teamBPlayers)) {
-                $teamB->players()->attach($teamBPlayers);
+                foreach ($teamBPlayers as $playerId) {
+                    \DB::table('team_players')->insert([
+                        'team_id' => $teamB->id,
+                        'user_id' => $playerId,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                }
                 \Log::info('MatchController::updateTeams - Added players to Team B:', ['players' => $teamBPlayers]);
             }
 
