@@ -57,43 +57,41 @@ class MatchController extends Controller
                     // Debug logging
                     \Log::info("MatchController::index - Processing match ID: {$match->id}");
                     
-                    // Lấy players cho từng team riêng biệt để tránh ambiguous column
-                    // Sửa logic tìm team - tìm team có cầu thủ hoặc team mới nhất
-                    $teams = $match->teams->sortBy('id');
+                    // Load teams trực tiếp từ database thay vì dùng relationship
+                    $teams = \DB::table('teams')
+                        ->where('match_id', $match->id)
+                        ->orderBy('id', 'desc')
+                        ->get();
+                    
+                    \Log::info("MatchController::index - Match {$match->id} teams loaded from DB:", [
+                        'total_teams' => $teams->count(),
+                        'teams' => $teams->map(function($t) { return ['id' => $t->id, 'name' => $t->name]; })->toArray()
+                    ]);
                     
                     // Tìm team A có cầu thủ trước, nếu không có thì lấy team A mới nhất
                     $teamAWithPlayers = $teams->where('name', 'like', '%A%')->filter(function($team) {
                         $playerCount = \DB::table('team_players')->where('team_id', $team->id)->count();
                         return $playerCount > 0;
-                    })->sortByDesc('id')->first();
+                    })->first();
                     
-                    $teamA = $teamAWithPlayers ?: $teams->where('name', 'like', '%A%')->sortByDesc('id')->first();
+                    $teamA = $teamAWithPlayers ?: $teams->where('name', 'like', '%A%')->first();
                     
                     // Tìm team B có cầu thủ trước, nếu không có thì lấy team B mới nhất
                     $teamBWithPlayers = $teams->where('name', 'like', '%B%')->filter(function($team) {
                         $playerCount = \DB::table('team_players')->where('team_id', $team->id)->count();
                         return $playerCount > 0;
-                    })->sortByDesc('id')->first();
+                    })->first();
                     
-                    $teamB = $teamBWithPlayers ?: $teams->where('name', 'like', '%B%')->sortByDesc('id')->first();
+                    $teamB = $teamBWithPlayers ?: $teams->where('name', 'like', '%B%')->first();
                     
-                    \Log::info("MatchController::index - Match {$match->id} teams found:", [
-                        'total_teams' => $match->teams->count(),
-                        'teams' => $match->teams->map(function($t) { return ['id' => $t->id, 'name' => $t->name]; })->toArray(),
+                    \Log::info("MatchController::index - Match {$match->id} teams selected:", [
                         'teamA_selected' => $teamA ? ['id' => $teamA->id, 'name' => $teamA->name] : null,
                         'teamB_selected' => $teamB ? ['id' => $teamB->id, 'name' => $teamB->name] : null
                     ]);
                     
-                    \Log::info("MatchController::index - Match {$match->id} teams:", [
-                        'teamA_id' => $teamA?->id,
-                        'teamB_id' => $teamB?->id,
-                        'teamA_name' => $teamA?->name,
-                        'teamB_name' => $teamB?->name
-                    ]);
-                    
-                    // Nếu không có teams, log warning nhưng không tạo mới
+                    // Nếu không có teams, log warning
                     if (!$teamA || !$teamB) {
-                        \Log::warning("MatchController::index - Match {$match->id} missing teams, but not creating new ones");
+                        \Log::warning("MatchController::index - Match {$match->id} missing teams");
                     }
                     
                     // Lấy players cho Team A
