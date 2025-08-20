@@ -520,7 +520,9 @@ class MatchController extends Controller
                 ], 400);
             }
 
-            $match = GameMatch::with('teams')->where('club_id', $clubId)->find($id);
+            $match = GameMatch::with(['teams' => function($query) {
+                $query->select('id', 'match_id', 'name', 'score', 'is_winner');
+            }])->where('club_id', $clubId)->find($id);
             
             if (!$match) {
                 return response()->json([
