@@ -76,13 +76,34 @@ class MatchController extends Controller
                     ]);
                     
                     // Tìm team A và B sử dụng filter thay vì where
-                    $teamA = $teams->filter(function($team) {
+                    // Ưu tiên team có cầu thủ trước
+                    $teamsA = $teams->filter(function($team) {
                         return str_contains($team->name, 'A');
+                    });
+                    
+                    $teamsB = $teams->filter(function($team) {
+                        return str_contains($team->name, 'B');
+                    });
+                    
+                    // Tìm team A có cầu thủ trước, nếu không có thì lấy team A đầu tiên
+                    $teamA = $teamsA->filter(function($team) {
+                        $playerCount = \DB::table('team_players')->where('team_id', $team->id)->count();
+                        return $playerCount > 0;
                     })->first();
                     
-                    $teamB = $teams->filter(function($team) {
-                        return str_contains($team->name, 'B');
+                    if (!$teamA) {
+                        $teamA = $teamsA->first();
+                    }
+                    
+                    // Tìm team B có cầu thủ trước, nếu không có thì lấy team B đầu tiên
+                    $teamB = $teamsB->filter(function($team) {
+                        $playerCount = \DB::table('team_players')->where('team_id', $team->id)->count();
+                        return $playerCount > 0;
                     })->first();
+                    
+                    if (!$teamB) {
+                        $teamB = $teamsB->first();
+                    }
                     
                     \Log::info("MatchController::index - Match {$match->id} teams found:", [
                         'teamA' => $teamA ? ['id' => $teamA->id, 'name' => $teamA->name] : null,
