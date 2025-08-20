@@ -68,6 +68,13 @@ class MatchController extends Controller
                         'teams' => $teams->map(function($t) { return ['id' => $t->id, 'name' => $t->name]; })->toArray()
                     ]);
                     
+                    // Debug chi tiết teams collection
+                    \Log::info("MatchController::index - Match {$match->id} teams collection:", [
+                        'teams_count' => $teams->count(),
+                        'teams_raw' => $teams->toArray(),
+                        'teams_names' => $teams->pluck('name')->toArray()
+                    ]);
+                    
                     // Tìm team A và B đơn giản hơn
                     $teamA = $teams->where('name', 'like', '%A%')->first();
                     $teamB = $teams->where('name', 'like', '%B%')->first();
@@ -75,6 +82,17 @@ class MatchController extends Controller
                     \Log::info("MatchController::index - Match {$match->id} teams found:", [
                         'teamA' => $teamA ? ['id' => $teamA->id, 'name' => $teamA->name] : null,
                         'teamB' => $teamB ? ['id' => $teamB->id, 'name' => $teamB->name] : null
+                    ]);
+                    
+                    // Debug logic tìm team
+                    $teamsA = $teams->where('name', 'like', '%A%');
+                    $teamsB = $teams->where('name', 'like', '%B%');
+                    
+                    \Log::info("MatchController::index - Match {$match->id} team filtering:", [
+                        'teamsA_count' => $teamsA->count(),
+                        'teamsA_names' => $teamsA->pluck('name')->toArray(),
+                        'teamsB_count' => $teamsB->count(),
+                        'teamsB_names' => $teamsB->pluck('name')->toArray()
                     ]);
                     
                     \Log::info("MatchController::index - Match {$match->id} teams selected:", [
