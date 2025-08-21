@@ -1101,7 +1101,7 @@ class MatchController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cập nhật kết quả thành công và đã tạo giao dịch quỹ cho đội thua'
+                'message' => 'Cập nhật kết quả thành công và đã tạo ' . $loserPlayers->count() . ' giao dịch quỹ cho đội thua'
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1164,9 +1164,11 @@ class MatchController extends Controller
                     'type' => 'expense', // Loại giao dịch: chi tiêu (nộp quỹ)
                     'amount' => $amountPerPlayer,
                     'description' => "Nộp quỹ trận đấu: {$match->title} - Đội {$loserTeam->name} thua",
-                    'transaction_date' => now(),
+                    'transaction_date' => now()->format('Y-m-d'),
                     'status' => 'pending', // Trạng thái: chưa nộp
                     'match_id' => $match->id,
+                    'notes' => "Trận đấu ID: {$match->id}, Đội thua: {$loserTeam->name}, Cầu thủ: {$player->name}",
+                    'created_by' => $player->id, // Sử dụng user_id của cầu thủ
                     'created_at' => now(),
                     'updated_at' => now()
                 ];
@@ -1189,8 +1191,11 @@ class MatchController extends Controller
 
             \Log::info('MatchController::createFundTransactionsForLosers - All transactions created successfully', [
                 'match_id' => $match->id,
+                'match_title' => $match->title,
+                'loser_team' => $loserTeam->name,
                 'total_transactions' => $loserPlayers->count(),
-                'total_amount' => $match->bet_amount
+                'total_amount' => $match->bet_amount,
+                'amount_per_player' => $amountPerPlayer
             ]);
 
         } catch (\Exception $e) {

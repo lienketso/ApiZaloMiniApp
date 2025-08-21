@@ -11,13 +11,16 @@ class FundTransaction extends Model
 
     protected $fillable = [
         'club_id',
+        'match_id',
+        'user_id',
         'type',
         'amount',
         'description',
         'category',
         'transaction_date',
         'notes',
-        'created_by'
+        'created_by',
+        'status'
     ];
 
     protected $casts = [
