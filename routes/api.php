@@ -348,6 +348,9 @@ Route::post('/fund-transactions', [FundTransactionController::class, 'store']);
 Route::get('/fund-transactions/{id}', [FundTransactionController::class, 'show']);
 Route::put('/fund-transactions/{id}', [FundTransactionController::class, 'update']);
 Route::delete('/fund-transactions/{id}', [FundTransactionController::class, 'destroy']);
+Route::put('/fund-transactions/{id}/status', [FundTransactionController::class, 'updateTransactionStatus']);
+Route::get('/fund-transactions/status/{status}', [FundTransactionController::class, 'getTransactionsByStatus']);
+Route::get('/fund-transactions/stats', [FundTransactionController::class, 'getFundStats']);
 
 // Matches
 Route::get('/matches', [MatchController::class, 'index']);

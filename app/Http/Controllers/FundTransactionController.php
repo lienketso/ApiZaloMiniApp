@@ -48,8 +48,25 @@ class FundTransactionController extends Controller
                 ], 404);
             }
 
-            $transactions = FundTransaction::with('creator')
-                ->byClub($clubId)
+            $query = FundTransaction::with('creator')
+                ->byClub($clubId);
+
+            // Filter theo trạng thái nếu có
+            if ($request->has('status') && in_array($request->status, ['pending', 'completed', 'cancelled'])) {
+                $query->where('status', $request->status);
+            }
+
+            // Filter theo loại giao dịch nếu có
+            if ($request->has('type') && in_array($request->type, ['income', 'expense'])) {
+                $query->where('type', $request->type);
+            }
+
+            // Filter theo match_id nếu có (để xem giao dịch của trận đấu cụ thể)
+            if ($request->has('match_id')) {
+                $query->where('match_id', $request->match_id);
+            }
+
+            $transactions = $query
                 ->orderBy('transaction_date', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -230,6 +247,120 @@ class FundTransactionController extends Controller
         }
     }
 
+    /**
+     * Cập nhật trạng thái giao dịch quỹ (từ pending sang completed)
+     */
+    public function updateTransactionStatus(Request $request, $id): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|in:pending,completed,cancelled',
+                'club_id' => 'required|integer|exists:clubs,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dữ liệu không hợp lệ',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $clubId = $request->input('club_id');
+            
+            // Tìm giao dịch theo ID và club_id
+            $transaction = FundTransaction::where('id', $id)
+                ->where('club_id', $clubId)
+                ->first();
+
+            if (!$transaction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy giao dịch quỹ'
+                ], 404);
+            }
+
+            // Cập nhật trạng thái
+            $oldStatus = $transaction->status;
+            $transaction->update(['status' => $request->status]);
+
+            // Log thay đổi trạng thái
+            \Log::info('FundTransaction status updated:', [
+                'transaction_id' => $transaction->id,
+                'old_status' => $oldStatus,
+                'new_status' => $request->status,
+                'club_id' => $clubId,
+                'description' => $transaction->description
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $transaction->fresh(),
+                'message' => 'Cập nhật trạng thái giao dịch thành công'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi cập nhật trạng thái: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy danh sách giao dịch quỹ theo trạng thái
+     */
+    public function getTransactionsByStatus(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|in:pending,completed,cancelled',
+                'club_id' => 'required|integer|exists:clubs,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dữ liệu không hợp lệ',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $clubId = $request->input('club_id');
+            $status = $request->input('status');
+
+            $transactions = FundTransaction::with(['creator', 'club'])
+                ->where('club_id', $clubId)
+                ->where('status', $status)
+                ->orderBy('transaction_date', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $statusLabels = [
+                'pending' => 'Chờ nộp',
+                'completed' => 'Đã nộp',
+                'cancelled' => 'Đã hủy'
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'transactions' => $transactions,
+                    'status_label' => $statusLabels[$status],
+                    'total_count' => $transactions->count(),
+                    'total_amount' => $transactions->sum('amount')
+                ],
+                'message' => 'Lấy danh sách giao dịch theo trạng thái thành công'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy danh sách giao dịch: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     // Thống kê quỹ
     public function getFundStats(): JsonResponse
     {
@@ -246,16 +377,22 @@ class FundTransactionController extends Controller
             $currentMonth = now()->month;
             $currentYear = now()->year;
 
-            $totalFund = FundTransaction::byClub($clubId)->selectRaw('
-                SUM(CASE WHEN type = "income" THEN amount ELSE 0 END) as total_income,
-                SUM(CASE WHEN type = "expense" THEN amount ELSE 0 END) as total_expense
-            ')->first();
+            $totalFund = FundTransaction::byClub($clubId)
+                ->where('status', 'completed') // Chỉ tính giao dịch đã hoàn thành
+                ->selectRaw('
+                    SUM(CASE WHEN type = "income" THEN amount ELSE 0 END) as total_income,
+                    SUM(CASE WHEN type = "expense" THEN amount ELSE 0 END) as total_expense
+                ')->first();
 
-            $monthlyIncome = FundTransaction::byClub($clubId)->income()
+            $monthlyIncome = FundTransaction::byClub($clubId)
+                ->where('status', 'completed') // Chỉ tính giao dịch đã hoàn thành
+                ->income()
                 ->byMonth($currentMonth, $currentYear)
                 ->sum('amount');
 
-            $monthlyExpense = FundTransaction::byClub($clubId)->expense()
+            $monthlyExpense = FundTransaction::byClub($clubId)
+                ->where('status', 'completed') // Chỉ tính giao dịch đã hoàn thành
+                ->expense()
                 ->byMonth($currentMonth, $currentYear)
                 ->sum('amount');
 
@@ -266,10 +403,21 @@ class FundTransactionController extends Controller
                 ->limit(5)
                 ->get();
 
+            // Thống kê giao dịch pending (chờ nộp)
+            $pendingTransactions = FundTransaction::byClub($clubId)
+                ->where('status', 'pending')
+                ->get();
+
+            $pendingIncome = $pendingTransactions->where('type', 'income')->sum('amount');
+            $pendingExpense = $pendingTransactions->where('type', 'expense')->sum('amount');
+
             $stats = [
                 'total_fund' => ($totalFund->total_income ?? 0) - ($totalFund->total_expense ?? 0),
                 'monthly_income' => $monthlyIncome,
                 'monthly_expense' => $monthlyExpense,
+                'pending_income' => $pendingIncome, // Thu chờ nộp
+                'pending_expense' => $pendingExpense, // Chi chờ xử lý
+                'pending_count' => $pendingTransactions->count(),
                 'recent_transactions' => $recentTransactions
             ];
 

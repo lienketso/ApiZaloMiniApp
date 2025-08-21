@@ -1101,7 +1101,7 @@ class MatchController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cập nhật kết quả thành công và đã tạo ' . $transactionsCount . ' giao dịch quỹ cho đội thua'
+                'message' => 'Cập nhật kết quả thành công và đã tạo ' . $transactionsCount . ' giao dịch quỹ thu từ đội thua (chờ nộp)'
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1113,7 +1113,7 @@ class MatchController extends Controller
     }
 
     /**
-     * Tạo giao dịch quỹ cho đội thua
+     * Tạo giao dịch quỹ thu từ đội thua (trạng thái pending - chưa nộp)
      */
     private function createFundTransactionsForLosers($match, $winner, $teamA, $teamB): int
     {
@@ -1122,7 +1122,7 @@ class MatchController extends Controller
             $loserTeam = ($winner === 'teamA') ? $teamB : $teamA;
             $winnerTeam = ($winner === 'teamA') ? $teamA : $teamB;
             
-            \Log::info('MatchController::createFundTransactionsForLosers - Creating transactions for losers:', [
+            \Log::info('MatchController::createFundTransactionsForLosers - Creating income transactions from losers:', [
                 'match_id' => $match->id,
                 'winner_team' => $winnerTeam->name,
                 'loser_team' => $loserTeam->name,
@@ -1136,7 +1136,7 @@ class MatchController extends Controller
                 ->select('users.id', 'users.name')
                 ->get();
 
-            \Log::info('MatchController::createFundTransactionsForLosers - Loser team players:', [
+            \Log::info('MatchController::createFundTransactionsForLosers - Loser team players (will pay fund):', [
                 'team_id' => $loserTeam->id,
                 'players_count' => $loserPlayers->count(),
                 'players' => $loserPlayers->toArray()
@@ -1150,30 +1150,30 @@ class MatchController extends Controller
             // Tính số tiền mỗi người phải nộp (chia đều)
             $amountPerPlayer = $match->bet_amount / $loserPlayers->count();
             
-            \Log::info('MatchController::createFundTransactionsForLosers - Amount calculation:', [
+            \Log::info('MatchController::createFundTransactionsForLosers - Fund amount calculation:', [
                 'total_bet_amount' => $match->bet_amount,
                 'players_count' => $loserPlayers->count(),
                 'amount_per_player' => $amountPerPlayer
             ]);
 
-            // Tạo giao dịch quỹ cho từng cầu thủ của đội thua
+            // Tạo giao dịch quỹ thu từ từng cầu thủ của đội thua
             foreach ($loserPlayers as $player) {
                 $transactionData = [
                     'club_id' => $match->club_id,
                     'user_id' => $player->id,
-                    'type' => 'expense', // Loại giao dịch: chi tiêu (nộp quỹ)
+                    'type' => 'income', // Loại giao dịch: thu (nộp quỹ)
                     'amount' => $amountPerPlayer,
-                    'description' => "Nộp quỹ trận đấu: {$match->title} - Đội {$loserTeam->name} thua",
+                    'description' => "Thu quỹ trận đấu: {$match->title} - Đội {$loserTeam->name} thua",
                     'transaction_date' => now()->format('Y-m-d'),
                     'status' => 'pending', // Trạng thái: chưa nộp
                     'match_id' => $match->id,
-                    'notes' => "Trận đấu ID: {$match->id}, Đội thua: {$loserTeam->name}, Cầu thủ: {$player->name}",
+                    'notes' => "Trận đấu ID: {$match->id}, Đội thua: {$loserTeam->name}, Cầu thủ: {$player->name} - Chờ nộp quỹ",
                     'created_by' => $player->id, // Sử dụng user_id của cầu thủ
                     'created_at' => now(),
                     'updated_at' => now()
                 ];
 
-                \Log::info('MatchController::createFundTransactionsForLosers - Creating transaction for player:', [
+                \Log::info('MatchController::createFundTransactionsForLosers - Creating income transaction for player:', [
                     'player_id' => $player->id,
                     'player_name' => $player->name,
                     'transaction_data' => $transactionData
@@ -1182,7 +1182,7 @@ class MatchController extends Controller
                 // Tạo giao dịch quỹ
                 $transactionId = \DB::table('fund_transactions')->insertGetId($transactionData);
                 
-                \Log::info('MatchController::createFundTransactionsForLosers - Transaction created successfully:', [
+                \Log::info('MatchController::createFundTransactionsForLosers - Income transaction created successfully:', [
                     'transaction_id' => $transactionId,
                     'player_id' => $player->id,
                     'amount' => $amountPerPlayer
