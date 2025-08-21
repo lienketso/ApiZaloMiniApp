@@ -1094,14 +1094,14 @@ class MatchController extends Controller
                 'teamB_is_winner' => $request->winner === 'teamB'
             ]);
 
-            // Tạo giao dịch quỹ cho đội thua
-            $this->createFundTransactionsForLosers($match, $request->winner, $teamA, $teamB);
+            // Tạo giao dịch quỹ cho đội thua và lấy số lượng giao dịch đã tạo
+            $transactionsCount = $this->createFundTransactionsForLosers($match, $request->winner, $teamA, $teamB);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cập nhật kết quả thành công và đã tạo ' . $loserPlayers->count() . ' giao dịch quỹ cho đội thua'
+                'message' => 'Cập nhật kết quả thành công và đã tạo ' . $transactionsCount . ' giao dịch quỹ cho đội thua'
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1115,7 +1115,7 @@ class MatchController extends Controller
     /**
      * Tạo giao dịch quỹ cho đội thua
      */
-    private function createFundTransactionsForLosers($match, $winner, $teamA, $teamB): void
+    private function createFundTransactionsForLosers($match, $winner, $teamA, $teamB): int
     {
         try {
             // Xác định đội thua
@@ -1144,7 +1144,7 @@ class MatchController extends Controller
 
             if ($loserPlayers->count() === 0) {
                 \Log::warning('MatchController::createFundTransactionsForLosers - No players found in loser team');
-                return;
+                return 0;
             }
 
             // Tính số tiền mỗi người phải nộp (chia đều)
@@ -1198,6 +1198,9 @@ class MatchController extends Controller
                 'amount_per_player' => $amountPerPlayer
             ]);
 
+            // Trả về số lượng giao dịch đã tạo
+            return $loserPlayers->count();
+
         } catch (\Exception $e) {
             \Log::error('MatchController::createFundTransactionsForLosers - Exception occurred:', [
                 'match_id' => $match->id,
@@ -1208,7 +1211,8 @@ class MatchController extends Controller
             ]);
             
             // Không throw exception để không ảnh hưởng đến việc cập nhật kết quả
-            // Chỉ log lỗi và tiếp tục
+            // Chỉ log lỗi và trả về 0
+            return 0;
         }
     }
 
