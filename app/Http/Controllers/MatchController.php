@@ -558,6 +558,66 @@ class MatchController extends Controller
     }
 
     /**
+     * Helper method để tạo hoặc lấy teams cho một match
+     * Đảm bảo không có teams trùng lặp
+     */
+    private function getOrCreateTeams($matchId)
+    {
+        // Lấy teams hiện có
+        $teams = Team::where('match_id', $matchId)->get();
+        
+        // Tìm teams theo tên chính xác
+        $teamA = $teams->where('name', 'Đội A')->first();
+        $teamB = $teams->where('name', 'Đội B')->first();
+        
+        // Nếu có nhiều hơn 2 teams, xóa teams trùng lặp
+        if ($teams->count() > 2) {
+            \Log::warning('MatchController::getOrCreateTeams - Found duplicate teams:', [
+                'match_id' => $matchId,
+                'total_teams' => $teams->count(),
+                'teams' => $teams->map(function($t) { 
+                    return ['id' => $t->id, 'name' => $t->name]; 
+                })->toArray()
+            ]);
+            
+            // Xóa tất cả teams trừ 2 teams đầu tiên
+            $teamsToDelete = $teams->slice(2);
+            foreach ($teamsToDelete as $team) {
+                \Log::info('MatchController::getOrCreateTeams - Deleting duplicate team:', [
+                    'team_id' => $team->id,
+                    'name' => $team->name
+                ]);
+                $team->delete();
+            }
+            
+            // Lấy lại teams sau khi xóa
+            $teams = Team::where('match_id', $matchId)->get();
+            $teamA = $teams->where('name', 'Đội A')->first();
+            $teamB = $teams->where('name', 'Đội B')->first();
+        }
+        
+        // Tạo Team A nếu chưa có
+        if (!$teamA) {
+            $teamA = Team::create([
+                'match_id' => $matchId,
+                'name' => 'Đội A',
+            ]);
+            \Log::info('MatchController::getOrCreateTeams - Created Team A:', ['id' => $teamA->id]);
+        }
+        
+        // Tạo Team B nếu chưa có
+        if (!$teamB) {
+            $teamB = Team::create([
+                'match_id' => $matchId,
+                'name' => 'Đội B',
+            ]);
+            \Log::info('MatchController::getOrCreateTeams - Created Team B:', ['id' => $teamB->id]);
+        }
+        
+        return [$teamA, $teamB];
+    }
+
+    /**
      * Cập nhật thành viên cho các đội
      */
     public function updateTeams(Request $request, $id): JsonResponse
@@ -642,35 +702,17 @@ class MatchController extends Controller
                 ], 404);
             }
 
-            // Kiểm tra xem match có teams chưa
-            $teams = Team::where('match_id', $match->id)->get();
-            if ($teams->isEmpty()) {
-                // Tạo teams mặc định nếu chưa có
-                Team::create([
-                    'match_id' => $match->id,
-                    'name' => 'Đội A',
-                ]);
-                Team::create([
-                    'match_id' => $match->id,
-                    'name' => 'Đội B',
-                ]);
-                
-                // Lấy teams mới tạo
-                $teams = Team::where('match_id', $match->id)->get();
-            }
+            // Lấy hoặc tạo teams sử dụng helper method
+            [$teamA, $teamB] = $this->getOrCreateTeams($match->id);
 
             DB::beginTransaction();
 
             // Xóa tất cả thành viên khỏi các đội
-            foreach ($teams as $team) {
-                \DB::table('team_players')->where('team_id', $team->id)->delete();
-            }
+            \DB::table('team_players')->where('team_id', $teamA->id)->delete();
+            \DB::table('team_players')->where('team_id', $teamB->id)->delete();
 
             // Thêm thành viên cho đội A
-            $teamA = $teams->where('name', 'like', '%A%')->first();
-            \Log::info('MatchController::updateTeams - Team A found:', ['team' => $teamA ? $teamA->toArray() : null]);
-            
-            if ($teamA && !empty($teamAPlayers)) {
+            if (!empty($teamAPlayers)) {
                 foreach ($teamAPlayers as $playerId) {
                     \DB::table('team_players')->insert([
                         'team_id' => $teamA->id,
@@ -683,10 +725,7 @@ class MatchController extends Controller
             }
 
             // Thêm thành viên cho đội B
-            $teamB = $teams->where('name', 'like', '%B%')->first();
-            \Log::info('MatchController::updateTeams - Team B found:', ['team' => $teamB ? $teamB->toArray() : null]);
-            
-            if ($teamB && !empty($teamBPlayers)) {
+            if (!empty($teamBPlayers)) {
                 foreach ($teamBPlayers as $playerId) {
                     \DB::table('team_players')->insert([
                         'team_id' => $teamB->id,
@@ -696,27 +735,6 @@ class MatchController extends Controller
                     ]);
                 }
                 \Log::info('MatchController::updateTeams - Added players to Team B:', ['players' => $teamBPlayers]);
-            }
-
-            // Kiểm tra và tạo teams nếu chưa có
-            if (!$teamA) {
-                $teamA = Team::create([
-                    'match_id' => $match->id,
-                    'name' => 'Đội A',
-                ]);
-                if (!empty($teamAPlayers)) {
-                    $teamA->players()->attach($teamAPlayers);
-                }
-            }
-
-            if (!$teamB) {
-                $teamB = Team::create([
-                    'match_id' => $match->id,
-                    'name' => 'Đội B',
-                ]);
-                if (!empty($teamBPlayers)) {
-                    $teamB->players()->attach($teamBPlayers);
-                }
             }
 
             DB::commit();
@@ -906,81 +924,46 @@ class MatchController extends Controller
             // Cập nhật kết quả
             $match->update(['status' => 'completed']);
 
-            // Cập nhật điểm số cho các đội
-            $teams = Team::where('match_id', $match->id)->get();
+            // Lấy hoặc tạo teams sử dụng helper method
+            [$teamA, $teamB] = $this->getOrCreateTeams($match->id);
             
-            \Log::info('MatchController::updateResult - Found teams:', [
+            \Log::info('MatchController::updateResult - Teams ready for update:', [
                 'match_id' => $match->id,
-                'total_teams' => $teams->count(),
-                'teams' => $teams->map(function($t) { 
-                    return ['id' => $t->id, 'name' => $t->name, 'score' => $t->score, 'is_winner' => $t->is_winner]; 
-                })->toArray()
+                'teamA' => ['id' => $teamA->id, 'name' => $teamA->name],
+                'teamB' => ['id' => $teamB->id, 'name' => $teamB->name]
             ]);
             
-            $teamA = $teams->where('name', 'like', '%A%')->first();
-            if ($teamA) {
-                \Log::info('MatchController::updateResult - Updating Team A:', [
-                    'team_id' => $teamA->id,
-                    'old_score' => $teamA->score,
-                    'new_score' => $request->teamAScore,
-                    'old_is_winner' => $teamA->is_winner,
-                    'new_is_winner' => $request->winner === 'teamA'
-                ]);
-                
-                $updateResultA = $teamA->update([
-                    'score' => $request->teamAScore,
-                    'is_winner' => $request->winner === 'teamA'
-                ]);
-                
-                \Log::info('MatchController::updateResult - Team A update result:', ['success' => $updateResultA]);
-            } else {
-                \Log::warning('MatchController::updateResult - Team A not found');
-            }
+            // Cập nhật điểm số cho Team A
+            \Log::info('MatchController::updateResult - Updating Team A:', [
+                'team_id' => $teamA->id,
+                'old_score' => $teamA->score,
+                'new_score' => $request->teamAScore,
+                'old_is_winner' => $teamA->is_winner,
+                'new_is_winner' => $request->winner === 'teamA'
+            ]);
+            
+            $updateResultA = $teamA->update([
+                'score' => $request->teamAScore,
+                'is_winner' => $request->winner === 'teamA'
+            ]);
+            
+            \Log::info('MatchController::updateResult - Team A update result:', ['success' => $updateResultA]);
 
-            $teamB = $teams->where('name', 'like', '%B%')->first();
-            if ($teamB) {
-                \Log::info('MatchController::updateResult - Updating Team B:', [
-                    'team_id' => $teamB->id,
-                    'old_score' => $teamB->score,
-                    'old_is_winner' => $teamB->is_winner,
-                    'new_score' => $request->teamBScore,
-                    'new_is_winner' => $request->winner === 'teamB'
-                ]);
-                
-                $updateResultB = $teamB->update([
-                    'score' => $request->teamBScore,
-                    'is_winner' => $request->winner === 'teamB'
-                ]);
-                
-                \Log::info('MatchController::updateResult - Team B update result:', ['success' => $updateResultB]);
-            } else {
-                \Log::warning('MatchController::updateResult - Team B not found');
-            }
-
-            // Kiểm tra xem có cần tạo teams nếu chưa có không
-            if (!$teamA || !$teamB) {
-                \Log::info('MatchController::updateResult - Creating missing teams');
-                
-                if (!$teamA) {
-                    $teamA = Team::create([
-                        'match_id' => $match->id,
-                        'name' => 'Đội A',
-                        'score' => $request->teamAScore,
-                        'is_winner' => $request->winner === 'teamA'
-                    ]);
-                    \Log::info('MatchController::updateResult - Created Team A:', ['id' => $teamA->id]);
-                }
-                
-                if (!$teamB) {
-                    $teamB = Team::create([
-                        'match_id' => $match->id,
-                        'name' => 'Đội B',
-                        'score' => $request->teamBScore,
-                        'is_winner' => $request->winner === 'teamB'
-                    ]);
-                    \Log::info('MatchController::updateResult - Created Team B:', ['id' => $teamB->id]);
-                }
-            }
+            // Cập nhật điểm số cho Team B
+            \Log::info('MatchController::updateResult - Updating Team B:', [
+                'team_id' => $teamB->id,
+                'old_score' => $teamB->score,
+                'old_is_winner' => $teamB->is_winner,
+                'new_score' => $request->teamBScore,
+                'new_is_winner' => $request->winner === 'teamB'
+            ]);
+            
+            $updateResultB = $teamB->update([
+                'score' => $request->teamBScore,
+                'is_winner' => $request->winner === 'teamB'
+            ]);
+            
+            \Log::info('MatchController::updateResult - Team B update result:', ['success' => $updateResultB]);
 
             // Log để debug
             \Log::info('MatchController::updateResult - Updated teams:', [

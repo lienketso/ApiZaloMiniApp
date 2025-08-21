@@ -44,6 +44,9 @@ return new class extends Migration
 
             // Foreign key
             $table->foreign('match_id')->references('id')->on('matches')->onDelete('cascade');
+            
+            // Đảm bảo mỗi match chỉ có 1 Team A và 1 Team B
+            $table->unique(['match_id', 'name']);
         });
 
         // Bảng team_players (cầu thủ trong đội)
