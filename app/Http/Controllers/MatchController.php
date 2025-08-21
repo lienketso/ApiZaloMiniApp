@@ -1163,6 +1163,14 @@ class MatchController extends Controller
                 ], 404);
             }
 
+            // Kiểm tra trạng thái match - chỉ cho phép xóa khi status = 'upcoming'
+            if ($match->status !== 'upcoming') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chỉ có thể xóa trận đấu chưa bắt đầu (sắp diễn ra)'
+                ], 422);
+            }
+
             $match->delete();
 
             return response()->json([
