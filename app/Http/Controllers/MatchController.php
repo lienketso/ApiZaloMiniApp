@@ -1094,11 +1094,14 @@ class MatchController extends Controller
                 'teamB_is_winner' => $request->winner === 'teamB'
             ]);
 
+            // Tạo giao dịch quỹ cho đội thua
+            $this->createFundTransactionsForLosers($match, $request->winner, $teamA, $teamB);
+
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cập nhật kết quả thành công'
+                'message' => 'Cập nhật kết quả thành công và đã tạo giao dịch quỹ cho đội thua'
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1106,6 +1109,101 @@ class MatchController extends Controller
                 'success' => false,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Tạo giao dịch quỹ cho đội thua
+     */
+    private function createFundTransactionsForLosers($match, $winner, $teamA, $teamB): void
+    {
+        try {
+            // Xác định đội thua
+            $loserTeam = ($winner === 'teamA') ? $teamB : $teamA;
+            $winnerTeam = ($winner === 'teamA') ? $teamA : $teamB;
+            
+            \Log::info('MatchController::createFundTransactionsForLosers - Creating transactions for losers:', [
+                'match_id' => $match->id,
+                'winner_team' => $winnerTeam->name,
+                'loser_team' => $loserTeam->name,
+                'bet_amount' => $match->bet_amount
+            ]);
+
+            // Lấy danh sách cầu thủ của đội thua
+            $loserPlayers = \DB::table('team_players')
+                ->join('users', 'team_players.user_id', '=', 'users.id')
+                ->where('team_players.team_id', $loserTeam->id)
+                ->select('users.id', 'users.name')
+                ->get();
+
+            \Log::info('MatchController::createFundTransactionsForLosers - Loser team players:', [
+                'team_id' => $loserTeam->id,
+                'players_count' => $loserPlayers->count(),
+                'players' => $loserPlayers->toArray()
+            ]);
+
+            if ($loserPlayers->count() === 0) {
+                \Log::warning('MatchController::createFundTransactionsForLosers - No players found in loser team');
+                return;
+            }
+
+            // Tính số tiền mỗi người phải nộp (chia đều)
+            $amountPerPlayer = $match->bet_amount / $loserPlayers->count();
+            
+            \Log::info('MatchController::createFundTransactionsForLosers - Amount calculation:', [
+                'total_bet_amount' => $match->bet_amount,
+                'players_count' => $loserPlayers->count(),
+                'amount_per_player' => $amountPerPlayer
+            ]);
+
+            // Tạo giao dịch quỹ cho từng cầu thủ của đội thua
+            foreach ($loserPlayers as $player) {
+                $transactionData = [
+                    'club_id' => $match->club_id,
+                    'user_id' => $player->id,
+                    'type' => 'expense', // Loại giao dịch: chi tiêu (nộp quỹ)
+                    'amount' => $amountPerPlayer,
+                    'description' => "Nộp quỹ trận đấu: {$match->title} - Đội {$loserTeam->name} thua",
+                    'transaction_date' => now(),
+                    'status' => 'pending', // Trạng thái: chưa nộp
+                    'match_id' => $match->id,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ];
+
+                \Log::info('MatchController::createFundTransactionsForLosers - Creating transaction for player:', [
+                    'player_id' => $player->id,
+                    'player_name' => $player->name,
+                    'transaction_data' => $transactionData
+                ]);
+
+                // Tạo giao dịch quỹ
+                $transactionId = \DB::table('fund_transactions')->insertGetId($transactionData);
+                
+                \Log::info('MatchController::createFundTransactionsForLosers - Transaction created successfully:', [
+                    'transaction_id' => $transactionId,
+                    'player_id' => $player->id,
+                    'amount' => $amountPerPlayer
+                ]);
+            }
+
+            \Log::info('MatchController::createFundTransactionsForLosers - All transactions created successfully', [
+                'match_id' => $match->id,
+                'total_transactions' => $loserPlayers->count(),
+                'total_amount' => $match->bet_amount
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('MatchController::createFundTransactionsForLosers - Exception occurred:', [
+                'match_id' => $match->id,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Không throw exception để không ảnh hưởng đến việc cập nhật kết quả
+            // Chỉ log lỗi và tiếp tục
         }
     }
 

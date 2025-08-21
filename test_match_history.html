@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Match History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .match-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .match-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+        }
+        .match-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .match-date {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .match-content {
+            padding: 20px;
+        }
+        .team-section {
+            margin-bottom: 20px;
+        }
+        .team-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .team-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .team-score {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .winner {
+            color: #10b981;
+        }
+        .loser {
+            color: #6b7280;
+        }
+        .team-players {
+            font-size: 14px;
+            color: #666;
+            margin-left: 20px;
+        }
+        .vs-divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        .vs-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #ddd;
+        }
+        .vs-text {
+            background: white;
+            padding: 0 15px;
+            color: #666;
+            font-weight: bold;
+        }
+        .result-summary {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .result-label {
+            font-weight: 500;
+            color: #555;
+        }
+        .result-value {
+            font-weight: 600;
+        }
+        .winner-value {
+            color: #10b981;
+        }
+        .loser-value {
+            color: #ef4444;
+        }
+        .fund-value {
+            color: #3b82f6;
+        }
+        .trophy-icon {
+            color: #f59e0b;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏆 Lịch sử trận đấu</h1>
+            <p>Xem lại các trận đấu đã kết thúc</p>
+        </div>
+
+        <!-- Sample Match 1 -->
+        <div class="match-card">
+            <div class="match-header">
+                <div class="match-title">Trận đấu mùa giải 2024</div>
+                <div class="match-date">15/12/2024 - 20:00</div>
+            </div>
+            <div class="match-content">
+                <!-- Team A -->
+                <div class="team-section">
+                    <div class="team-header">
+                        <div class="team-name">
+                            Đội A ⭐
+                        </div>
+                        <div class="team-score winner">3</div>
+                    </div>
+                    <div class="team-players">
+                        <strong>Cầu thủ:</strong> Nguyễn Văn A, Trần Thị B, Lê Văn C
+                    </div>
+                </div>
+
+                <!-- VS Divider -->
+                <div class="vs-divider">
+                    <span class="vs-text">VS</span>
+                </div>
+
+                <!-- Team B -->
+                <div class="team-section">
+                    <div class="team-header">
+                        <div class="team-name">Đội B</div>
+                        <div class="team-score loser">1</div>
+                    </div>
+                    <div class="team-players">
+                        <strong>Cầu thủ:</strong> Phạm Văn D, Hoàng Thị E, Vũ Văn F
+                    </div>
+                </div>
+
+                <!-- Result Summary -->
+                <div class="result-summary">
+                    <div class="result-row">
+                        <span class="result-label">Đội thắng:</span>
+                        <span class="result-value winner-value">Đội A</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Đội thua:</span>
+                        <span class="result-value loser-value">Đội B</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Số tiền nộp quỹ:</span>
+                        <span class="result-value fund-value">50,000 VNĐ</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sample Match 2 -->
+        <div class="match-card">
+            <div class="match-header">
+                <div class="match-title">Giao hữu cuối tuần</div>
+                <div class="match-date">08/12/2024 - 19:00</div>
+            </div>
+            <div class="match-content">
+                <!-- Team A -->
+                <div class="team-section">
+                    <div class="team-header">
+                        <div class="team-name">Đội A</div>
+                        <div class="team-score loser">0</div>
+                    </div>
+                    <div class="team-players">
+                        <strong>Cầu thủ:</strong> Nguyễn Văn G, Trần Thị H
+                    </div>
+                </div>
+
+                <!-- VS Divider -->
+                <div class="vs-divider">
+                    <span class="vs-text">VS</span>
+                </div>
+
+                <!-- Team B -->
+                <div class="team-section">
+                    <div class="team-header">
+                        <div class="team-name">
+                            Đội B ⭐
+                        </div>
+                        <div class="team-score winner">2</div>
+                    </div>
+                    <div class="team-players">
+                        <strong>Cầu thủ:</strong> Phạm Văn I, Hoàng Thị K, Vũ Văn L
+                    </div>
+                </div>
+
+                <!-- Result Summary -->
+                <div class="result-summary">
+                    <div class="result-row">
+                        <span class="result-label">Đội thắng:</span>
+                        <span class="result-value winner-value">Đội B</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Đội thua:</span>
+                        <span class="result-value loser-value">Đội A</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Số tiền nộp quỹ:</span>
+                        <span class="result-value fund-value">30,000 VNĐ</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="match-card" style="text-align: center; padding: 40px 20px;">
+            <div style="font-size: 64px; color: #ddd; margin-bottom: 20px;">📅</div>
+            <h3 style="color: #666; margin-bottom: 10px;">Chưa có trận đấu nào</h3>
+            <p style="color: #999;">Các trận đấu đã kết thúc sẽ hiển thị ở đây</p>
+        </div>
+    </div>
+</body>
+</html>
