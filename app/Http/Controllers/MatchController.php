@@ -838,7 +838,7 @@ class MatchController extends Controller
             $validator = Validator::make($request->all(), [
                 'teamAScore' => 'required|integer|min:0',
                 'teamBScore' => 'required|integer|min:0',
-                'winner' => 'required|in:teamA,teamB',
+                'winner' => 'nullable|in:teamA,teamB,draw',
                 'club_id' => 'required|integer|exists:clubs,id',
             ]);
 
@@ -850,12 +850,8 @@ class MatchController extends Controller
                 ], 422);
             }
 
-            if ($request->teamAScore === $request->teamBScore) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Điểm số không được bằng nhau'
-                ], 422);
-            }
+            // Cho phép điểm số bằng nhau (hòa)
+            // Không cần validation này nữa
 
             // Lấy club_id từ request, header hoặc từ zalo_gid
             $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
@@ -915,6 +911,16 @@ class MatchController extends Controller
                     'is_winner' => $request->winner === 'teamB'
                 ]);
             }
+
+            // Log để debug
+            \Log::info('MatchController::updateResult - Updated teams:', [
+                'match_id' => $match->id,
+                'teamA_score' => $request->teamAScore,
+                'teamB_score' => $request->teamBScore,
+                'winner' => $request->winner,
+                'teamA_is_winner' => $request->winner === 'teamA',
+                'teamB_is_winner' => $request->winner === 'teamB'
+            ]);
 
             DB::commit();
 
