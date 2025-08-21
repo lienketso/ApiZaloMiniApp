@@ -848,6 +848,114 @@ class MatchController extends Controller
     }
 
     /**
+     * Hủy trận đấu (chuyển về trạng thái upcoming)
+     */
+    public function cancelMatch(Request $request, $id): JsonResponse
+    {
+        try {
+            // Log request data để debug
+            \Log::info('MatchController::cancelMatch - Request data:', [
+                'match_id' => $id,
+                'request_data' => $request->all(),
+                'headers' => $request->headers->all()
+            ]);
+            
+            $validator = Validator::make($request->all(), [
+                'club_id' => 'required|integer|exists:clubs,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dữ liệu không hợp lệ',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Lấy club_id từ request, header hoặc từ zalo_gid
+            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
+            
+            if (!$clubId) {
+                $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
+                
+                if ($zaloGid) {
+                    $user = \App\Models\User::where('zalo_gid', $zaloGid)->first();
+                    if ($user) {
+                        // Tìm club đầu tiên của user
+                        $userClub = \App\Models\UserClub::where('user_id', $user->id)
+                            ->where('is_active', true)
+                            ->first();
+                        if ($userClub) {
+                            $clubId = $userClub->club_id;
+                        }
+                    }
+                }
+            }
+            
+            if (!$clubId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không thể xác định club. Vui lòng chọn club trước.'
+                ], 400);
+            }
+
+            $match = GameMatch::where('club_id', $clubId)->find($id);
+            
+            if (!$match) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy trận đấu'
+                ], 404);
+            }
+
+            // Kiểm tra trạng thái match
+            if ($match->status !== 'ongoing') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chỉ có thể hủy trận đấu đang diễn ra'
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                // Cập nhật trạng thái match thành upcoming
+                $match->update(['status' => 'upcoming']);
+
+                \Log::info('MatchController::cancelMatch - Match cancelled successfully:', [
+                    'match_id' => $match->id,
+                    'old_status' => 'ongoing',
+                    'new_status' => 'upcoming'
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Trận đấu đã được hủy thành công'
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('MatchController::cancelMatch - Exception occurred:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Cập nhật kết quả trận đấu
      */
     public function updateResult(Request $request, $id): JsonResponse
@@ -919,10 +1027,21 @@ class MatchController extends Controller
                 ], 404);
             }
 
+            // Kiểm tra trạng thái match
+            if (!in_array($match->status, ['ongoing', 'completed'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chỉ có thể cập nhật kết quả cho trận đấu đang diễn ra hoặc đã hoàn thành'
+                ], 422);
+            }
+
             DB::beginTransaction();
 
             // Cập nhật kết quả
-            $match->update(['status' => 'completed']);
+            // Cập nhật trạng thái match thành completed (chỉ khi đang từ ongoing)
+            if ($match->status === 'ongoing') {
+                $match->update(['status' => 'completed']);
+            }
 
             // Lấy hoặc tạo teams sử dụng helper method
             [$teamA, $teamB] = $this->getOrCreateTeams($match->id);

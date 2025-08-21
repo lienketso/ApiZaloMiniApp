@@ -359,6 +359,7 @@ Route::put('/matches/{id}/teams', [MatchController::class, 'updateTeams']);
 Route::get('/matches/club-members', [MatchController::class, 'getClubMembers']);
 Route::post('/matches/{id}/start', [MatchController::class, 'startMatch']);
 Route::put('/matches/{id}/result', [MatchController::class, 'updateResult']);
+Route::put('/matches/{id}/cancel', [MatchController::class, 'cancelMatch']);
 
 // User profile - Sử dụng zalo_gid để xác thực
 Route::get('/user/profile', [UserController::class, 'profile']);
