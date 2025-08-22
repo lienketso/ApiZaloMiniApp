@@ -377,12 +377,33 @@ class FundTransactionController extends Controller
             $currentMonth = now()->month;
             $currentYear = now()->year;
 
+            // Tính tổng quỹ từ giao dịch đã hoàn thành
             $totalFund = FundTransaction::byClub($clubId)
                 ->where('status', 'completed') // Chỉ tính giao dịch đã hoàn thành
                 ->selectRaw('
                     SUM(CASE WHEN type = "income" THEN amount ELSE 0 END) as total_income,
                     SUM(CASE WHEN type = "expense" THEN amount ELSE 0 END) as total_expense
                 ')->first();
+
+            // Debug log để kiểm tra
+            \Log::info('Fund calculation debug:', [
+                'club_id' => $clubId,
+                'total_income_raw' => $totalFund->total_income ?? 'null',
+                'total_expense_raw' => $totalFund->total_expense ?? 'null',
+                'total_income_type' => gettype($totalFund->total_income ?? null),
+                'total_expense_type' => gettype($totalFund->total_expense ?? null)
+            ]);
+
+            // Đảm bảo giá trị là số
+            $totalIncome = is_numeric($totalFund->total_income) ? (float)$totalFund->total_income : 0;
+            $totalExpense = is_numeric($totalFund->total_expense) ? (float)$totalFund->total_expense : 0;
+            $calculatedTotalFund = $totalIncome - $totalExpense;
+
+            \Log::info('Fund calculation result:', [
+                'total_income' => $totalIncome,
+                'total_expense' => $totalExpense,
+                'calculated_total_fund' => $calculatedTotalFund
+            ]);
 
             $monthlyIncome = FundTransaction::byClub($clubId)
                 ->where('status', 'completed') // Chỉ tính giao dịch đã hoàn thành
@@ -412,7 +433,7 @@ class FundTransactionController extends Controller
             $pendingExpense = $pendingTransactions->where('type', 'expense')->sum('amount');
 
             $stats = [
-                'total_fund' => ($totalFund->total_income ?? 0) - ($totalFund->total_expense ?? 0),
+                'total_fund' => $calculatedTotalFund,
                 'monthly_income' => $monthlyIncome,
                 'monthly_expense' => $monthlyExpense,
                 'pending_income' => $pendingIncome, // Thu chờ nộp
