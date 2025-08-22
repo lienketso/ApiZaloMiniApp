@@ -36,7 +36,12 @@ class FundTransaction extends Model
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by')->select(['id', 'name', 'email']);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id')->select(['id', 'name', 'email']);
     }
 
     // Scopes

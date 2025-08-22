@@ -48,7 +48,7 @@ class FundTransactionController extends Controller
                 ], 404);
             }
 
-            $query = FundTransaction::with('creator')
+            $query = FundTransaction::with(['creator', 'user'])
                 ->byClub($clubId);
 
             // Filter theo trạng thái nếu có
@@ -138,7 +138,7 @@ class FundTransactionController extends Controller
                 'created_by' => $userId
             ]);
 
-            $transaction->load('creator');
+            $transaction->load(['creator', 'user']);
 
             return response()->json([
                 'success' => true,
@@ -160,7 +160,7 @@ class FundTransactionController extends Controller
     public function show(fundTransaction $fundTransaction)
     {
         try {
-            $fundTransaction->load('creator');
+            $fundTransaction->load(['creator', 'user']);
 
             return response()->json([
                 'success' => true,
@@ -210,7 +210,7 @@ class FundTransactionController extends Controller
                 'type', 'amount', 'description', 'category', 'transaction_date', 'notes'
             ]));
 
-            $fundTransaction->load('creator');
+            $fundTransaction->load(['creator', 'user']);
 
             return response()->json([
                 'success' => true,
@@ -295,7 +295,7 @@ class FundTransactionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $transaction->fresh(),
+                'data' => $transaction->fresh()->load(['creator', 'user']),
                 'message' => 'Cập nhật trạng thái giao dịch thành công'
             ]);
 
@@ -329,7 +329,7 @@ class FundTransactionController extends Controller
             $clubId = $request->input('club_id');
             $status = $request->input('status');
 
-            $transactions = FundTransaction::with(['creator', 'club'])
+            $transactions = FundTransaction::with(['creator', 'club', 'user'])
                 ->where('club_id', $clubId)
                 ->where('status', $status)
                 ->orderBy('transaction_date', 'desc')
@@ -396,7 +396,7 @@ class FundTransactionController extends Controller
                 ->byMonth($currentMonth, $currentYear)
                 ->sum('amount');
 
-            $recentTransactions = FundTransaction::with('creator')
+            $recentTransactions = FundTransaction::with(['creator', 'user'])
                 ->byClub($clubId)
                 ->orderBy('transaction_date', 'desc')
                 ->orderBy('created_at', 'desc')
