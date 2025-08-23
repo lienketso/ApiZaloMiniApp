@@ -10,6 +10,7 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\FundTransactionController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\ClubMembershipController;
+use App\Http\Controllers\MemberApprovalController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\UserClubController;
 use App\Http\Controllers\UserController;
@@ -340,6 +341,12 @@ Route::post('/club-membership/join', [ClubMembershipController::class, 'joinClub
 Route::post('/club-membership/check', [ClubMembershipController::class, 'checkMembership']);
 Route::get('/club-membership/available-clubs', [ClubMembershipController::class, 'getAvailableClubs']);
 Route::post('/club-membership/test', [ClubMembershipController::class, 'test']);
+
+// Member Approval (Admin only)
+Route::get('/member-approval/pending', [MemberApprovalController::class, 'getPendingMembers']);
+Route::post('/member-approval/approve', [MemberApprovalController::class, 'approveMember']);
+Route::post('/member-approval/reject', [MemberApprovalController::class, 'rejectMember']);
+Route::get('/member-approval/stats', [MemberApprovalController::class, 'getMembershipStats']);
 
 // Test ZNS API
 Route::get('/test-zns', function () {

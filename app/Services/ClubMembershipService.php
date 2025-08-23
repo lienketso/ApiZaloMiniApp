@@ -101,14 +101,15 @@ class ClubMembershipService
                         ]);
                     }
 
-                    // Thêm user vào club
+                    // Thêm user vào club với status pending (cần admin duyệt)
                     $userClub = UserClub::create([
                         'user_id' => $user->id,
                         'club_id' => $clubId,
                         'role' => 'member',
+                        'status' => 'pending', // Chờ admin duyệt
                         'joined_date' => now(),
-                        'is_active' => true,
-                        'notes' => 'Auto-joined via invitation by phone number'
+                        'is_active' => false, // Chưa active cho đến khi được duyệt
+                        'notes' => 'Auto-joined via invitation by phone number - pending admin approval'
                     ]);
 
                     // Đánh dấu invitation đã được chấp nhận
@@ -125,15 +126,16 @@ class ClubMembershipService
 
                     return [
                         'success' => true,
-                        'message' => 'Chào mừng bạn tham gia câu lạc bộ!',
-                        'code' => 'JOINED_VIA_INVITATION',
+                        'message' => 'Yêu cầu tham gia câu lạc bộ đã được gửi! Vui lòng chờ admin duyệt.',
+                        'code' => 'PENDING_APPROVAL',
                         'data' => [
                             'user_id' => $user->id,
                             'club_id' => $clubId,
                             'club_name' => $club->name,
                             'role' => 'member',
                             'joined_date' => $userClub->joined_date,
-                            'invitation_id' => $invitation->id
+                            'invitation_id' => $invitation->id,
+                            'status' => 'pending'
                         ]
                     ];
 
