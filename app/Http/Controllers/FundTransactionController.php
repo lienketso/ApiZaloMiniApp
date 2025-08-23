@@ -55,6 +55,15 @@ class FundTransactionController extends Controller
 
             \Log::info('FundTransactionController::index - Using club_id:', ['club_id' => $clubId]);
 
+            // Cập nhật club_id cho transactions cũ có club_id = NULL
+            $updatedCount = FundTransaction::whereNull('club_id')->update(['club_id' => $clubId]);
+            if ($updatedCount > 0) {
+                \Log::info('FundTransactionController::index - Updated club_id for old transactions:', [
+                    'updated_count' => $updatedCount,
+                    'club_id' => $clubId
+                ]);
+            }
+
             $query = FundTransaction::with(['creator', 'user'])
                 ->byClub($clubId);
 
@@ -276,7 +285,16 @@ class FundTransactionController extends Controller
             }
 
             // Kiểm tra xem giao dịch có thuộc club này không
-            if ((int)$fundTransaction->club_id !== (int)$clubId) {
+            if (!$fundTransaction->club_id) {
+                \Log::warning('FundTransactionController::update - Transaction missing club_id, updating it:', [
+                    'transaction_id' => $fundTransaction->id,
+                    'request_club_id' => $clubId
+                ]);
+                
+                // Cập nhật club_id cho transaction nếu nó bị NULL
+                $fundTransaction->update(['club_id' => $clubId]);
+                \Log::info('FundTransactionController::update - Updated transaction club_id from NULL to:', ['club_id' => $clubId]);
+            } elseif ((int)$fundTransaction->club_id !== (int)$clubId) {
                 \Log::warning('FundTransactionController::update - Transaction does not belong to club:', [
                     'transaction_club_id' => $fundTransaction->club_id,
                     'transaction_club_id_type' => gettype($fundTransaction->club_id),

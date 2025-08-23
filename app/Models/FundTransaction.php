@@ -47,7 +47,11 @@ class FundTransaction extends Model
     // Scopes
     public function scopeByClub($query, $clubId)
     {
-        return $query->where('club_id', $clubId);
+        // Filter theo club_id, bao gồm cả trường hợp club_id = NULL (cập nhật sau)
+        return $query->where(function($q) use ($clubId) {
+            $q->where('club_id', $clubId)
+              ->orWhereNull('club_id'); // Bao gồm transactions cũ chưa có club_id
+        });
     }
 
     public function scopeIncome($query)
