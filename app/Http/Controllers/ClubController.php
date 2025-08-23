@@ -551,15 +551,14 @@ class ClubController extends Controller
                 ->with(['creator:id,name,avatar', 'users:id,name,avatar', 'events:id,title,start_date', 'matches:id,title,match_date'])
                 ->get();
 
-            // Lấy danh sách câu lạc bộ user đã tham gia
-            $userJoinedClubIds = UserClub::where('user_id', $userId)
-                ->where('is_active', true)
-                ->pluck('club_id')
-                ->toArray();
+            // Lấy danh sách câu lạc bộ user đã tham gia (bao gồm tất cả status)
+            $userMemberships = UserClub::where('user_id', $userId)
+                ->get();
 
-            // Phân loại câu lạc bộ
-            $joinedClubs = $allClubs->whereIn('id', $userJoinedClubIds)->values(); // Thêm values() để chuyển thành array
-            $availableClubs = $allClubs->whereNotIn('id', $userJoinedClubIds)->values(); // Thêm values() để chuyển thành array
+            // Phân loại câu lạc bộ theo membership status
+            $joinedClubIds = $userMemberships->pluck('club_id')->toArray();
+            $joinedClubs = $allClubs->whereIn('id', $joinedClubIds)->values(); // Thêm values() để chuyển thành array
+            $availableClubs = $allClubs->whereNotIn('id', $joinedClubIds)->values(); // Thêm values() để chuyển thành array
 
             return response()->json([
                 'success' => true,
