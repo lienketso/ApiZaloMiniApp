@@ -244,42 +244,62 @@ class InvitationController extends Controller
     {
         try {
             $request->validate([
-                'club_id' => 'required|exists:clubs,id',
-                'zalo_gid' => 'required|string',
+                'club_id' => 'sometimes|exists:clubs,id',  // Không bắt buộc
+                'zalo_gid' => 'sometimes|string',  // Không bắt buộc
+                'phone' => 'sometimes|string',  // Cho phép filter theo phone
+                'status' => 'sometimes|in:pending,accepted,expired,cancelled',  // Cho phép filter theo status
             ]);
 
-            $clubId = $request->club_id;
-            $zaloGid = $request->zalo_gid;
+            $clubId = $request->input('club_id');
+            $zaloGid = $request->input('zalo_gid');
+            $phone = $request->input('phone');
+            $status = $request->input('status');
 
-            // Kiểm tra quyền admin
-            $admin = User::where('zalo_gid', $zaloGid)->first();
-            if (!$admin) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy người dùng'
-                ], 404);
+            // Xây dựng query
+            $query = Invitation::query();
+
+            // Filter theo club_id nếu có
+            if ($clubId) {
+                $query->where('club_id', $clubId);
+                
+                // Nếu có club_id, kiểm tra quyền admin
+                if ($zaloGid) {
+                    $admin = User::where('zalo_gid', $zaloGid)->first();
+                    if ($admin) {
+                        $userClub = UserClub::where('user_id', $admin->id)
+                            ->where('club_id', $clubId)
+                            ->where('role', 'admin')
+                            ->first();
+
+                        if (!$userClub) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Bạn không có quyền xem danh sách lời mời của club này'
+                            ], 403);
+                        }
+                    }
+                }
             }
 
-            $userClub = UserClub::where('user_id', $admin->id)
-                ->where('club_id', $clubId)
-                ->where('role', 'admin')
-                ->first();
+            // Filter theo phone nếu có
+            if ($phone) {
+                $query->where('phone', $phone);
+            }
 
-            if (!$userClub) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Bạn không có quyền xem danh sách lời mời'
-                ], 403);
+            // Filter theo status nếu có
+            if ($status) {
+                $query->where('status', $status);
             }
 
             // Lấy danh sách lời mời
-            $invitations = Invitation::where('club_id', $clubId)
+            $invitations = $query
                 ->with(['inviter:id,name', 'club:id,name'])
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($invitation) {
                     return [
                         'id' => $invitation->id,
+                        'club_id' => $invitation->club_id,
                         'phone' => $invitation->phone,
                         'status' => $invitation->status,
                         'invite_token' => $invitation->invite_token,
