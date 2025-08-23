@@ -7,6 +7,7 @@ use App\Models\Club;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 class UserClubController extends Controller
 {
@@ -424,6 +425,67 @@ class UserClubController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Kiểm tra status membership của user với club
+     */
+    public function checkStatus(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'club_id' => 'required|integer|exists:clubs,id',
+                'user_id' => 'required|integer|exists:users,id',
+            ]);
+
+            $clubId = $request->input('club_id');
+            $userId = $request->input('user_id');
+
+            // Tìm membership trong bảng user_clubs
+            $membership = UserClub::where('club_id', $clubId)
+                ->where('user_id', $userId)
+                ->first();
+
+            if (!$membership) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User chưa có membership với club này',
+                    'data' => null
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lấy thông tin membership thành công',
+                'data' => [
+                    'id' => $membership->id,
+                    'user_id' => $membership->user_id,
+                    'club_id' => $membership->club_id,
+                    'role' => $membership->role,
+                    'status' => $membership->status,
+                    'joined_date' => $membership->joined_date,
+                    'is_active' => $membership->is_active,
+                    'notes' => $membership->notes,
+                    'approved_at' => $membership->approved_at,
+                    'approved_by' => $membership->approved_by,
+                    'rejection_reason' => $membership->rejection_reason
+                ]
+            ]);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dữ liệu không hợp lệ',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error checking membership status: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi kiểm tra status membership',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
