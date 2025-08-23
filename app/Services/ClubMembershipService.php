@@ -245,21 +245,37 @@ class ClubMembershipService
     public function getAvailableClubs(string $phone): array
     {
         try {
+            Log::info('ClubMembershipService::getAvailableClubs - Starting:', ['phone' => $phone]);
+            
             $invitations = Invitation::where('phone', $phone)
                 ->where('status', 'pending')
                 ->where('expires_at', '>', now())
-                ->with('club')
+                ->with(['club', 'inviter'])
                 ->get();
 
+            Log::info('ClubMembershipService::getAvailableClubs - Found invitations:', [
+                'phone' => $phone,
+                'count' => $invitations->count(),
+                'invitations' => $invitations->toArray()
+            ]);
+
             $availableClubs = $invitations->map(function ($invitation) {
+                $clubName = $invitation->club ? $invitation->club->name : 'Unknown Club';
+                $inviterName = $invitation->inviter ? $invitation->inviter->name : 'Unknown';
+                
                 return [
                     'club_id' => $invitation->club_id,
-                    'club_name' => $invitation->club->name ?? 'Unknown Club',
+                    'club_name' => $clubName,
                     'invitation_id' => $invitation->id,
                     'expires_at' => $invitation->expires_at,
-                    'invited_by' => $invitation->inviter ? $invitation->inviter->name : 'Unknown'
+                    'invited_by' => $inviterName
                 ];
             });
+
+            Log::info('ClubMembershipService::getAvailableClubs - Processed clubs:', [
+                'phone' => $phone,
+                'available_clubs_count' => $availableClubs->count()
+            ]);
 
             return [
                 'success' => true,
