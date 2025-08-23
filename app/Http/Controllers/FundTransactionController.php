@@ -97,6 +97,16 @@ class FundTransactionController extends Controller
      */
     public function store(Request $request)
     {
+        // Xử lý Laravel method override cho DELETE
+        if ($request->has('_method') && $request->input('_method') === 'DELETE') {
+            $id = $request->route('id') ?? $request->input('id');
+            if ($id) {
+                return $this->performDelete($request, $id);
+            }
+        }
+        
+        // Xử lý tạo giao dịch mới
+    {
         try {
             $validator = Validator::make($request->all(), [
                 'type' => 'required|in:income,expense',
@@ -229,17 +239,111 @@ class FundTransactionController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(FundTransaction $fundTransaction)
+    public function destroy(Request $request, $id)
+    {
+        // Xử lý Laravel method override (_method: DELETE)
+        if ($request->has('_method') && $request->input('_method') === 'DELETE') {
+            return $this->performDelete($request, $id);
+        }
+        
+        // Xử lý DELETE method thông thường
+        return $this->performDelete($request, $id);
+    }
+
+    /**
+     * Perform the actual deletion logic
+     */
+    private function performDelete(Request $request, $id)
     {
         try {
-            $fundTransaction->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Xóa giao dịch thành công'
+            \Log::info('FundTransactionController::destroy - Attempting to delete transaction:', [
+                'transaction_id' => $id,
+                'request_data' => $request->all(),
+                'headers' => $request->headers->all()
             ]);
 
+            // Lấy club_id từ request hoặc header
+            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
+            
+            if (!$clubId) {
+                \Log::warning('FundTransactionController::destroy - No club_id provided');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'club_id is required'
+                ], 400);
+            }
+
+            \Log::info('FundTransactionController::destroy - Using club_id:', ['club_id' => $clubId]);
+
+            // Tìm giao dịch theo ID và club_id
+            $transaction = FundTransaction::where('id', $id)
+                ->where('club_id', $clubId)
+                ->first();
+
+            if (!$transaction) {
+                \Log::warning('FundTransactionController::destroy - Transaction not found:', [
+                    'transaction_id' => $id,
+                    'club_id' => $clubId
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy giao dịch quỹ'
+                ], 404);
+            }
+
+            \Log::info('FundTransactionController::destroy - Found transaction:', [
+                'transaction_id' => $transaction->id,
+                'club_id' => $transaction->club_id,
+                'amount' => $transaction->amount,
+                'type' => $transaction->type,
+                'description' => $transaction->description
+            ]);
+
+            // Thử xóa giao dịch
+            $deleted = $transaction->delete();
+            
+            \Log::info('FundTransactionController::destroy - Delete result:', [
+                'transaction_id' => $id,
+                'deleted' => $deleted
+            ]);
+
+            if ($deleted) {
+                // Kiểm tra xem giao dịch có thực sự bị xóa không
+                $stillExists = FundTransaction::where('id', $id)->exists();
+                
+                \Log::info('FundTransactionController::destroy - Verification after delete:', [
+                    'transaction_id' => $id,
+                    'still_exists' => $stillExists
+                ]);
+
+                if (!$stillExists) {
+                    \Log::info('FundTransactionController::destroy - Transaction successfully deleted from database');
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Xóa giao dịch thành công'
+                    ]);
+                } else {
+                    \Log::error('FundTransactionController::destroy - Delete failed: transaction still exists in database');
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Lỗi: Giao dịch không được xóa khỏi database'
+                    ], 500);
+                }
+            } else {
+                \Log::error('FundTransactionController::destroy - Delete operation returned false');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lỗi khi xóa giao dịch'
+                ], 500);
+            }
+
         } catch (\Exception $e) {
+            \Log::error('FundTransactionController::destroy - Exception occurred:', [
+                'transaction_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi xóa giao dịch: ' . $e->getMessage()
