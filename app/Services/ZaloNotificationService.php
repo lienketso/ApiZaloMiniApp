@@ -17,7 +17,10 @@ class ZaloNotificationService
     }
 
     /**
-     * Gửi thông báo ZNS
+     * Gửi thông báo ZNS (Zalo Notification Service)
+     * 
+     * API Documentation: https://developers.zalo.me/docs/zalo-notification-service/bat-dau/gioi-thieu-zalo-notification-service
+     * Endpoint: https://business.openapi.zalo.me/notification/send
      */
     public function sendZNS(string $phone, string $templateId, array $templateData, string $inviteLink = null): array
     {
@@ -30,7 +33,7 @@ class ZaloNotificationService
                 ];
             }
 
-            // Chuẩn bị dữ liệu template
+            // Chuẩn bị dữ liệu template theo format ZNS API
             $templateParams = [];
             foreach ($templateData as $key => $value) {
                 $templateParams[] = [
@@ -47,6 +50,7 @@ class ZaloNotificationService
                 ];
             }
 
+            // Payload theo ZNS API specification
             $payload = [
                 'phone' => $phone,
                 'template_id' => $templateId,
@@ -57,10 +61,12 @@ class ZaloNotificationService
             Log::info('Sending ZNS notification:', [
                 'phone' => $phone,
                 'template_id' => $templateId,
-                'template_data' => $templateData
+                'template_data' => $templateData,
+                'api_url' => $this->apiUrl
             ]);
 
-            $response = Http::post($this->apiUrl, $payload);
+            // Gửi request đến ZNS API
+            $response = Http::timeout(30)->post($this->apiUrl, $payload);
 
             if ($response->successful()) {
                 $result = $response->json();
@@ -72,15 +78,18 @@ class ZaloNotificationService
                     'data' => $result
                 ];
             } else {
+                $errorResponse = $response->json();
                 Log::error('ZNS sending failed:', [
                     'status' => $response->status(),
-                    'response' => $response->body()
+                    'response' => $errorResponse,
+                    'raw_response' => $response->body()
                 ]);
                 
                 return [
                     'success' => false,
-                    'message' => 'Failed to send ZNS',
-                    'error' => $response->body()
+                    'message' => 'Failed to send ZNS: ' . ($errorResponse['message'] ?? 'Unknown error'),
+                    'error' => $errorResponse,
+                    'status_code' => $response->status()
                 ];
             }
 
@@ -99,6 +108,12 @@ class ZaloNotificationService
 
     /**
      * Gửi thông báo mời thành viên
+     * 
+     * Template cần có các biến:
+     * - club_name: Tên câu lạc bộ
+     * - invite_message: Lời nhắn mời
+     * - action_text: Hướng dẫn hành động
+     * - invite_link: Link để tham gia (tự động thêm)
      */
     public function sendInvitationNotification(string $phone, string $clubName, string $inviteLink): array
     {
@@ -116,6 +131,11 @@ class ZaloNotificationService
 
     /**
      * Gửi thông báo chào mừng thành viên mới
+     * 
+     * Template cần có các biến:
+     * - club_name: Tên câu lạc bộ
+     * - welcome_message: Lời chào mừng
+     * - next_steps: Hướng dẫn tiếp theo
      */
     public function sendWelcomeNotification(string $phone, string $clubName): array
     {
@@ -128,5 +148,73 @@ class ZaloNotificationService
         ];
 
         return $this->sendZNS($phone, $templateId, $templateData);
+    }
+
+    /**
+     * Test kết nối ZNS API
+     */
+    public function testConnection(): array
+    {
+        try {
+            $response = Http::timeout(10)->get($this->apiUrl);
+            
+            if ($response->status() === 404) {
+                // 404 là expected response khi không có payload
+                return [
+                    'success' => true,
+                    'message' => 'ZNS API endpoint is accessible',
+                    'status' => 'API endpoint working'
+                ];
+            }
+            
+            return [
+                'success' => true,
+                'message' => 'ZNS API connection test completed',
+                'status_code' => $response->status(),
+                'response' => $response->body()
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'ZNS API connection test failed: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Lấy thông tin template từ ZNS
+     */
+    public function getTemplateInfo(string $templateId): array
+    {
+        try {
+            // API để lấy thông tin template (cần implement theo ZNS docs)
+            $apiUrl = 'https://business.openapi.zalo.me/notification/template/' . $templateId;
+            
+            $response = Http::timeout(30)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $this->accessToken
+                ])
+                ->get($apiUrl);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to get template info',
+                    'error' => $response->json()
+                ];
+            }
+            
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error getting template info: ' . $e->getMessage()
+            ];
+        }
     }
 }

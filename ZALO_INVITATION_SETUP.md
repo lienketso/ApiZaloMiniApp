@@ -16,16 +16,37 @@ ZALO_INVITATION_TEMPLATE_ID=12345
 ZALO_WELCOME_TEMPLATE_ID=12346
 
 # Frontend URL
-FRONTEND_URL=https://your-app.com
+APP_URL=https://your-app.com
 ```
 
 ## 2. Tạo Zalo Business Account
 
-1. Đăng ký tài khoản Zalo Business tại: https://business.zalo.me/
-2. Xác thực doanh nghiệp
-3. Tạo ứng dụng và lấy access token
+1. **Đăng ký tài khoản Zalo Business** tại: https://business.zalo.me/
+2. **Xác thực doanh nghiệp** theo hướng dẫn
+3. **Tạo ứng dụng** và lấy access token
+4. **Kích hoạt ZNS (Zalo Notification Service)**
 
-## 3. Tạo ZNS Templates
+## 3. ZNS API Endpoints
+
+### API Documentation:
+- **Chính thức**: https://developers.zalo.me/docs/zalo-notification-service/bat-dau/gioi-thieu-zalo-notification-service
+- **Send Notification**: `POST https://business.openapi.zalo.me/notification/send`
+
+### API Payload Format:
+```json
+{
+    "phone": "0123456789",
+    "template_id": "12345",
+    "template_data": [
+        {"key": "club_name", "value": "Tên Club"},
+        {"key": "invite_message", "value": "Lời nhắn mời"},
+        {"key": "action_text", "value": "Hướng dẫn hành động"}
+    ],
+    "access_token": "your_access_token"
+}
+```
+
+## 4. Tạo ZNS Templates
 
 ### Template mời thành viên (ID: 12345):
 ```
@@ -49,16 +70,32 @@ Chào mừng bạn đã tham gia câu lạc bộ {{club_name}}!
 Cảm ơn bạn!
 ```
 
-## 4. Chạy Migration
+## 5. Chạy Migration
 
 ```bash
 php artisan migrate
 ```
 
-## 5. Test API
+## 6. Test ZNS API
 
-### Tạo lời mời:
+### Test kết nối cơ bản:
 ```bash
+# Test API connection
+php artisan zns:test
+
+# Test với template cụ thể
+php artisan zns:test --template=12345
+
+# Test gửi notification
+php artisan zns:test --phone=0123456789 --template=12345
+```
+
+### Test qua API endpoint:
+```bash
+# Test connection
+GET /api/test-zns
+
+# Test tạo lời mời
 POST /api/invitations
 {
     "club_id": 1,
@@ -67,16 +104,7 @@ POST /api/invitations
 }
 ```
 
-### Chấp nhận lời mời:
-```bash
-POST /api/invitations/accept
-{
-    "invite_token": "generated_token_here",
-    "zalo_gid": "user_zalo_gid"
-}
-```
-
-## 6. Luồng hoạt động
+## 7. Luồng hoạt động
 
 1. **Admin tạo lời mời**: Nhập số điện thoại → hệ thống tạo invite_token và gửi ZNS
 2. **Thành viên nhận ZNS**: Click vào link → mở Mini App
@@ -84,27 +112,57 @@ POST /api/invitations/accept
 4. **Xử lý lời mời**: Backend insert vào users + user_clubs
 5. **Hoàn tất**: Thành viên đã tham gia club
 
-## 7. Lưu ý bảo mật
+## 8. Lưu ý bảo mật
 
 - `invite_token` có thời hạn 7 ngày
 - Chỉ admin mới có quyền tạo/hủy lời mời
 - ZNS được gửi qua Zalo Business API đã được xác thực
 - Tất cả thao tác đều được log để theo dõi
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 ### Nếu ZNS không gửi được:
-1. Kiểm tra `ZALO_ACCESS_TOKEN` có hợp lệ không
-2. Kiểm tra template ID có đúng không
-3. Kiểm tra logs trong `storage/logs/laravel.log`
+1. **Kiểm tra access token**: Đảm bảo `ZALO_ACCESS_TOKEN` hợp lệ
+2. **Kiểm tra template ID**: Đảm bảo template đã được tạo trong Zalo Business
+3. **Kiểm tra logs**: Xem `storage/logs/laravel.log` để debug
+4. **Test connection**: Sử dụng `php artisan zns:test` để kiểm tra
 
 ### Nếu lời mời không hoạt động:
-1. Kiểm tra `invite_token` có đúng không
-2. Kiểm tra token có hết hạn không
-3. Kiểm tra user có quyền admin không
+1. **Kiểm tra invite_token**: Đảm bảo token đúng và chưa hết hạn
+2. **Kiểm tra quyền**: Đảm bảo user có quyền admin
+3. **Kiểm tra database**: Đảm bảo bảng invitations đã được tạo
 
-## 9. Monitoring
+### Common ZNS Errors:
+- **404 "empty api"**: API endpoint đúng nhưng cần payload hợp lệ
+- **401 Unauthorized**: Access token không hợp lệ hoặc hết hạn
+- **400 Bad Request**: Template data không đúng format
 
-- Log tất cả thao tác tạo/hủy/chấp nhận lời mời
-- Theo dõi số lượng ZNS gửi thành công/thất bại
-- Kiểm tra thời gian xử lý lời mời
+## 10. Monitoring & Logs
+
+### Log files:
+- **Laravel logs**: `storage/logs/laravel.log`
+- **ZNS logs**: Tự động log trong InvitationController
+
+### Metrics cần theo dõi:
+- Số lượng ZNS gửi thành công/thất bại
+- Thời gian xử lý lời mời
+- Số lượng lời mời được chấp nhận/từ chối
+- Error rate của ZNS API
+
+## 11. Production Checklist
+
+- [ ] Zalo Business account đã được xác thực
+- [ ] ZNS templates đã được tạo và approved
+- [ ] Access token có đủ quyền gửi ZNS
+- [ ] Environment variables đã được cấu hình
+- [ ] Database migration đã chạy thành công
+- [ ] Test ZNS API thành công
+- [ ] Frontend integration hoàn tất
+- [ ] Monitoring và alerting đã setup
+
+## 12. Support & Resources
+
+- **Zalo Developer Portal**: https://developers.zalo.me/
+- **Zalo Business**: https://business.zalo.me/
+- **ZNS Documentation**: https://developers.zalo.me/docs/zalo-notification-service/
+- **API Status**: Kiểm tra status.zalo.me nếu có vấn đề

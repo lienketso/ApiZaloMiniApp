@@ -334,6 +334,25 @@ Route::post('/invitations/accept', [InvitationController::class, 'accept']);
 Route::get('/invitations', [InvitationController::class, 'index']);
 Route::delete('/invitations/{id}', [InvitationController::class, 'destroy']);
 
+// Test ZNS API
+Route::get('/test-zns', function () {
+    try {
+        $znsService = new \App\Services\ZaloNotificationService();
+        $result = $znsService->testConnection();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'ZNS API test completed',
+            'result' => $result
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'ZNS API test failed: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
 // Events
 Route::get('/events', [EventController::class, 'index']);
 Route::post('/events', [EventController::class, 'store']);

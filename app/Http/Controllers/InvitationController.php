@@ -81,6 +81,21 @@ class InvitationController extends Controller
             $club = Club::find($clubId);
             $znsResult = $znsService->sendInvitationNotification($phone, $club->name ?? 'Unknown Club', $inviteLink);
 
+            // Log kết quả ZNS
+            if ($znsResult['success']) {
+                Log::info('ZNS sent successfully for invitation:', [
+                    'invitation_id' => $invitation->id,
+                    'phone' => $phone,
+                    'club_name' => $club->name ?? 'Unknown Club'
+                ]);
+            } else {
+                Log::warning('ZNS sending failed for invitation:', [
+                    'invitation_id' => $invitation->id,
+                    'phone' => $phone,
+                    'error' => $znsResult['message']
+                ]);
+            }
+
             Log::info('Invitation created:', [
                 'invitation_id' => $invitation->id,
                 'club_id' => $clubId,
