@@ -262,7 +262,9 @@ class FundTransactionController extends Controller
             \Log::info('FundTransactionController::update - Club ID extraction:', [
                 'club_id_from_input' => $clubIdFromInput,
                 'club_id_from_header' => $clubIdFromHeader,
-                'final_club_id' => $clubId
+                'final_club_id' => $clubId,
+                'all_request_inputs' => $request->all(),
+                'all_request_headers' => $request->headers->all()
             ]);
             
             if (!$clubId) {
