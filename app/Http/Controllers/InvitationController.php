@@ -76,25 +76,14 @@ class InvitationController extends Controller
             // Tạo link mời
             $inviteLink = config('app.url', 'https://your-app.com') . '/invite/' . $invitation->invite_token;
 
-            // Gửi ZNS thông báo
-            $znsService = new ZaloNotificationService();
+            // Tạm thời không gửi ZNS - chỉ tạo record trong DB
             $club = Club::find($clubId);
-            $znsResult = $znsService->sendInvitationNotification($phone, $club->name ?? 'Unknown Club', $inviteLink);
-
-            // Log kết quả ZNS
-            if ($znsResult['success']) {
-                Log::info('ZNS sent successfully for invitation:', [
-                    'invitation_id' => $invitation->id,
-                    'phone' => $phone,
-                    'club_name' => $club->name ?? 'Unknown Club'
-                ]);
-            } else {
-                Log::warning('ZNS sending failed for invitation:', [
-                    'invitation_id' => $invitation->id,
-                    'phone' => $phone,
-                    'error' => $znsResult['message']
-                ]);
-            }
+            Log::info('Invitation created without ZNS (temporary):', [
+                'invitation_id' => $invitation->id,
+                'phone' => $phone,
+                'club_name' => $club->name ?? 'Unknown Club',
+                'note' => 'ZNS temporarily disabled - user will be mapped when accessing Mini App'
+            ]);
 
             Log::info('Invitation created:', [
                 'invitation_id' => $invitation->id,

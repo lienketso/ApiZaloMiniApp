@@ -12,7 +12,7 @@ use App\Models\User;
 use App\Models\UserClub;
 use App\Services\ZaloNotificationService;
 
-echo "=== TEST HỆ THỐNG MỜI THÀNH VIÊN ===\n\n";
+echo "=== TEST HỆ THỐNG MỜI THÀNH VIÊN (KHÔNG DÙNG ZNS) ===\n\n";
 
 try {
     // 1. Test tạo invitation
@@ -43,6 +43,7 @@ try {
     
     echo "✅ Invitation created: " . $invitation->invite_token . "\n";
     echo "✅ Expires at: " . $invitation->expires_at . "\n";
+    echo "✅ Note: ZNS không được gửi (tạm thời tắt)\n";
     
     // 2. Test ZNS service
     echo "\n2. Testing ZNS service...\n";

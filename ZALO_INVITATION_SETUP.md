@@ -1,100 +1,88 @@
-# Hướng dẫn setup chức năng mời thành viên
+# Hướng dẫn setup chức năng mời thành viên (Không dùng ZNS)
 
 ## 1. Cấu hình môi trường
 
 Thêm các biến sau vào file `.env`:
 
 ```env
-# Zalo Business API
-ZALO_ACCESS_TOKEN=your_zalo_access_token_here
-ZALO_BUSINESS_ID=your_business_id_here
-ZALO_APP_ID=your_app_id_here
-ZALO_APP_SECRET=your_app_secret_here
-
-# Zalo Notification Service Templates
-ZALO_INVITATION_TEMPLATE_ID=12345
-ZALO_WELCOME_TEMPLATE_ID=12346
-
 # Frontend URL
 APP_URL=https://your-app.com
+
+# ZNS (tạm thời không dùng)
+# ZALO_ACCESS_TOKEN=your_zalo_access_token_here
+# ZALO_INVITATION_TEMPLATE_ID=12345
+# ZALO_WELCOME_TEMPLATE_ID=12346
 ```
 
-## 2. Tạo Zalo Business Account
+## 2. Luồng hoạt động mới (không dùng ZNS)
 
-1. **Đăng ký tài khoản Zalo Business** tại: https://business.zalo.me/
-2. **Xác thực doanh nghiệp** theo hướng dẫn
-3. **Tạo ứng dụng** và lấy access token
-4. **Kích hoạt ZNS (Zalo Notification Service)**
+### **Admin tạo lời mời:**
+1. Admin nhập số điện thoại thành viên
+2. Hệ thống tạo record trong bảng `invitations`
+3. **KHÔNG gửi ZNS** - chỉ lưu vào DB
 
-## 3. ZNS API Endpoints
+### **Thành viên tham gia:**
+1. Thành viên truy cập Mini App
+2. Click vào câu lạc bộ muốn tham gia
+3. Hệ thống tự động kiểm tra:
+   - Nếu có invitation → Tự động tham gia
+   - Nếu không có → Thông báo cần được mời
 
-### API Documentation:
-- **Chính thức**: https://developers.zalo.me/docs/zalo-notification-service/bat-dau/gioi-thieu-zalo-notification-service
-- **Send Notification**: `POST https://business.openapi.zalo.me/notification/send`
+## 3. API Endpoints
 
-### API Payload Format:
-```json
+### **Invitations (Admin):**
+```bash
+# Tạo lời mời (không gửi ZNS)
+POST /api/invitations
 {
+    "club_id": 1,
     "phone": "0123456789",
-    "template_id": "12345",
-    "template_data": [
-        {"key": "club_name", "value": "Tên Club"},
-        {"key": "invite_message", "value": "Lời nhắn mời"},
-        {"key": "action_text", "value": "Hướng dẫn hành động"}
-    ],
-    "access_token": "your_access_token"
+    "zalo_gid": "admin_zalo_gid"
 }
+
+# Xem danh sách lời mời
+GET /api/invitations?club_id=1&zalo_gid=admin_zalo_gid
+
+# Hủy lời mời
+DELETE /api/invitations/{id}
 ```
 
-## 4. Tạo ZNS Templates
+### **Club Membership (User):**
+```bash
+# Tham gia club (click vào club)
+POST /api/club-membership/join
+{
+    "club_id": 1,
+    "phone": "0123456789",
+    "zalo_gid": "user_zalo_gid"
+}
 
-### Template mời thành viên (ID: 12345):
-```
-Xin chào! Bạn được mời tham gia câu lạc bộ {{club_name}}.
+# Kiểm tra trạng thái membership
+POST /api/club-membership/check
+{
+    "club_id": 1,
+    "zalo_gid": "user_zalo_gid"
+}
 
-{{invite_message}}
-
-{{action_text}}: {{invite_link}}
-
-Lời mời có hiệu lực trong 7 ngày.
-```
-
-### Template chào mừng (ID: 12346):
-```
-Chào mừng bạn đã tham gia câu lạc bộ {{club_name}}!
-
-{{welcome_message}}
-
-{{next_steps}}
-
-Cảm ơn bạn!
+# Xem danh sách club có thể tham gia
+GET /api/club-membership/available-clubs?phone=0123456789
 ```
 
-## 5. Chạy Migration
+## 4. Chạy Migration
 
 ```bash
 php artisan migrate
 ```
 
-## 6. Test ZNS API
+## 5. Test hệ thống
 
-### Test kết nối cơ bản:
+### **Test toàn bộ hệ thống:**
 ```bash
-# Test API connection
-php artisan zns:test
-
-# Test với template cụ thể
-php artisan zns:test --template=12345
-
-# Test gửi notification
-php artisan zns:test --phone=0123456789 --template=12345
+php test_invitation_system.php
 ```
 
-### Test qua API endpoint:
+### **Test qua API:**
 ```bash
-# Test connection
-GET /api/test-zns
-
 # Test tạo lời mời
 POST /api/invitations
 {
@@ -102,63 +90,75 @@ POST /api/invitations
     "phone": "0123456789",
     "zalo_gid": "admin_zalo_gid"
 }
+
+# Test tham gia club
+POST /api/club-membership/join
+{
+    "club_id": 1,
+    "phone": "0123456789",
+    "zalo_gid": "user_zalo_gid"
+}
 ```
 
-## 7. Luồng hoạt động
+## 6. Luồng hoạt động chi tiết
 
-1. **Admin tạo lời mời**: Nhập số điện thoại → hệ thống tạo invite_token và gửi ZNS
-2. **Thành viên nhận ZNS**: Click vào link → mở Mini App
-3. **Hệ thống xác thực**: Lấy zalo_gid từ ZMP SDK
-4. **Xử lý lời mời**: Backend insert vào users + user_clubs
-5. **Hoàn tất**: Thành viên đã tham gia club
+1. **Admin tạo lời mời**: Nhập số điện thoại → hệ thống tạo record trong `invitations`
+2. **Thành viên truy cập Mini App**: Đăng nhập bằng ZMP SDK → lấy `zalo_gid`
+3. **Thành viên click vào club**: Frontend gọi API `/api/club-membership/join`
+4. **Backend xử lý**: 
+   - Kiểm tra có invitation cho số điện thoại không
+   - Nếu có → Tự động tham gia club
+   - Nếu không → Thông báo cần được mời
+5. **Hoàn tất**: Thành viên đã tham gia club hoặc nhận thông báo
 
-## 8. Lưu ý bảo mật
+## 7. Lưu ý bảo mật
 
 - `invite_token` có thời hạn 7 ngày
 - Chỉ admin mới có quyền tạo/hủy lời mời
-- ZNS được gửi qua Zalo Business API đã được xác thực
+- **Không gửi ZNS** - chỉ lưu trong DB
 - Tất cả thao tác đều được log để theo dõi
 
-## 9. Troubleshooting
+## 8. Troubleshooting
 
-### Nếu ZNS không gửi được:
-1. **Kiểm tra access token**: Đảm bảo `ZALO_ACCESS_TOKEN` hợp lệ
-2. **Kiểm tra template ID**: Đảm bảo template đã được tạo trong Zalo Business
+### **Nếu lời mời không hoạt động:**
+1. **Kiểm tra invitation**: Đảm bảo record tồn tại trong bảng `invitations`
+2. **Kiểm tra thời hạn**: Đảm bảo invitation chưa hết hạn
+3. **Kiểm tra quyền**: Đảm bảo user có quyền admin
+4. **Kiểm tra database**: Đảm bảo bảng invitations đã được tạo
+
+### **Nếu user không thể tham gia:**
+1. **Kiểm tra số điện thoại**: Đảm bảo số điện thoại khớp với invitation
+2. **Kiểm tra zalo_gid**: Đảm bảo user đã đăng nhập
 3. **Kiểm tra logs**: Xem `storage/logs/laravel.log` để debug
-4. **Test connection**: Sử dụng `php artisan zns:test` để kiểm tra
 
-### Nếu lời mời không hoạt động:
-1. **Kiểm tra invite_token**: Đảm bảo token đúng và chưa hết hạn
-2. **Kiểm tra quyền**: Đảm bảo user có quyền admin
-3. **Kiểm tra database**: Đảm bảo bảng invitations đã được tạo
+## 9. Monitoring & Logs
 
-### Common ZNS Errors:
-- **404 "empty api"**: API endpoint đúng nhưng cần payload hợp lệ
-- **401 Unauthorized**: Access token không hợp lệ hoặc hết hạn
-- **400 Bad Request**: Template data không đúng format
-
-## 10. Monitoring & Logs
-
-### Log files:
+### **Log files:**
 - **Laravel logs**: `storage/logs/laravel.log`
-- **ZNS logs**: Tự động log trong InvitationController
+- **Membership logs**: Tự động log trong ClubMembershipService
 
-### Metrics cần theo dõi:
-- Số lượng ZNS gửi thành công/thất bại
-- Thời gian xử lý lời mời
-- Số lượng lời mời được chấp nhận/từ chối
-- Error rate của ZNS API
+### **Metrics cần theo dõi:**
+- Số lượng invitation được tạo
+- Số lượng user tham gia thành công
+- Số lượng user bị từ chối (không có invitation)
+- Thời gian xử lý yêu cầu tham gia
 
-## 11. Production Checklist
+## 10. Production Checklist
 
-- [ ] Zalo Business account đã được xác thực
-- [ ] ZNS templates đã được tạo và approved
-- [ ] Access token có đủ quyền gửi ZNS
-- [ ] Environment variables đã được cấu hình
 - [ ] Database migration đã chạy thành công
-- [ ] Test ZNS API thành công
+- [ ] Bảng `invitations` đã được tạo
+- [ ] ClubMembershipService đã được test
+- [ ] API endpoints hoạt động bình thường
 - [ ] Frontend integration hoàn tất
 - [ ] Monitoring và alerting đã setup
+
+## 11. Khi nào cần bật lại ZNS
+
+Khi muốn bật lại ZNS:
+1. Cấu hình lại các biến môi trường Zalo
+2. Uncomment code gửi ZNS trong `InvitationController`
+3. Test ZNS API connection
+4. Cập nhật frontend để hiển thị thông báo ZNS
 
 ## 12. Support & Resources
 

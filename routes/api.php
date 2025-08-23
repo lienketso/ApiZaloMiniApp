@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\FundTransactionController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\ClubMembershipController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\UserClubController;
 use App\Http\Controllers\UserController;
@@ -333,6 +334,12 @@ Route::post('/invitations', [InvitationController::class, 'store']);
 Route::post('/invitations/accept', [InvitationController::class, 'accept']);
 Route::get('/invitations', [InvitationController::class, 'index']);
 Route::delete('/invitations/{id}', [InvitationController::class, 'destroy']);
+
+// Club Membership (không cần ZNS)
+Route::post('/club-membership/join', [ClubMembershipController::class, 'joinClub']);
+Route::post('/club-membership/check', [ClubMembershipController::class, 'checkMembership']);
+Route::get('/club-membership/available-clubs', [ClubMembershipController::class, 'getAvailableClubs']);
+Route::post('/club-membership/test', [ClubMembershipController::class, 'test']);
 
 // Test ZNS API
 Route::get('/test-zns', function () {
