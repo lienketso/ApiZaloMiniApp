@@ -257,7 +257,7 @@ class ClubMembershipService
                     'club_name' => $invitation->club->name ?? 'Unknown Club',
                     'invitation_id' => $invitation->id,
                     'expires_at' => $invitation->expires_at,
-                    'invited_by' => $invitation->inviter->name ?? 'Unknown'
+                    'invited_by' => $invitation->inviter ? $invitation->inviter->name : 'Unknown'
                 ];
             });
 

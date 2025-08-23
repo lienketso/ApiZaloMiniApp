@@ -116,8 +116,8 @@ class ClubMembershipController extends Controller
 
             return response()->json([
                 'success' => $result['success'],
-                'message' => $result['message'],
-                'code' => $result['code'],
+                'message' => $result['message'] ?? 'Thành công',
+                'code' => $result['code'] ?? null,
                 'data' => $result['data'] ?? null
             ], $result['success'] ? 200 : 400);
 
@@ -130,7 +130,7 @@ class ClubMembershipController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi kiểm tra trạng thái thành viên',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage() ?: 'Unknown error occurred'
             ], 500);
         }
     }
@@ -151,7 +151,7 @@ class ClubMembershipController extends Controller
 
             return response()->json([
                 'success' => $result['success'],
-                'message' => $result['message'],
+                'message' => $result['message'] ?? 'Thành công',
                 'data' => $result['data'] ?? [],
                 'total' => $result['total'] ?? 0
             ], $result['success'] ? 200 : 400);
@@ -165,7 +165,7 @@ class ClubMembershipController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi lấy danh sách câu lạc bộ có thể tham gia',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage() ?: 'Unknown error occurred'
             ], 500);
         }
     }
@@ -204,8 +204,8 @@ class ClubMembershipController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Test failed: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => 'Test failed: ' . ($e->getMessage() ?: 'Unknown error'),
+                'error' => $e->getMessage() ?: 'Unknown error occurred'
             ], 500);
         }
     }
