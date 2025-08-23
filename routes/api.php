@@ -8,6 +8,7 @@ use App\Http\Controllers\ClubController;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\FundTransactionController;
+use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\UserClubController;
 use App\Http\Controllers\UserController;
@@ -326,6 +327,12 @@ Route::post('/user-clubs', [UserClubController::class, 'store']);
 Route::get('/user-clubs/{id}', [UserClubController::class, 'show']);
 Route::put('/user-clubs/{id}', [UserClubController::class, 'update']);
 Route::delete('/user-clubs/{id}', [UserClubController::class, 'destroy']);
+
+// Invitations
+Route::post('/invitations', [InvitationController::class, 'store']);
+Route::post('/invitations/accept', [InvitationController::class, 'accept']);
+Route::get('/invitations', [InvitationController::class, 'index']);
+Route::delete('/invitations/{id}', [InvitationController::class, 'destroy']);
 
 // Events
 Route::get('/events', [EventController::class, 'index']);
