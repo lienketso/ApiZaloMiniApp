@@ -274,6 +274,9 @@ class FundTransactionController extends Controller
                 'request_data' => $request->all(),
                 'request_headers' => $request->headers->all()
             ]);
+            
+            // Bắt đầu database transaction
+            \DB::beginTransaction();
 
             // Lấy club_id từ request hoặc header
             $clubIdFromInput = $request->input('club_id');
@@ -344,17 +347,46 @@ class FundTransactionController extends Controller
             }
 
             \Log::info('FundTransactionController::update - Validation passed, updating transaction');
+            
+            // Log data trước khi update
+            \Log::info('FundTransactionController::update - Data before update:', [
+                'transaction_before' => $fundTransaction->toArray(),
+                'request_data' => $request->all()
+            ]);
 
-            $fundTransaction->update($request->only([
+            // Chuẩn bị data để update, bao gồm cả club_id nếu cần
+            $updateData = $request->only([
                 'type', 'amount', 'description', 'category', 'transaction_date', 'notes', 'status', 'user_id'
-            ]));
+            ]);
+            
+            // Thêm club_id vào update data nếu transaction chưa có
+            if (!$fundTransaction->club_id) {
+                $updateData['club_id'] = $clubId;
+            }
+            
+            \Log::info('FundTransactionController::update - Updating with data:', [
+                'update_data' => $updateData,
+                'transaction_id' => $fundTransaction->id
+            ]);
+            
+            $fundTransaction->update($updateData);
+            
+            // Refresh model để lấy data mới nhất
+            $fundTransaction->refresh();
 
             $fundTransaction->load(['creator', 'user']);
 
             \Log::info('FundTransactionController::update - Transaction updated successfully:', [
                 'transaction_id' => $fundTransaction->id,
-                'updated_data' => $fundTransaction->toArray()
+                'updated_data' => $fundTransaction->toArray(),
+                'club_id_after_update' => $fundTransaction->club_id,
+                'amount_after_update' => $fundTransaction->amount,
+                'status_after_update' => $fundTransaction->status
             ]);
+            
+            // Commit database transaction
+            \DB::commit();
+            \Log::info('FundTransactionController::update - Database transaction committed successfully');
 
             return response()->json([
                 'success' => true,
@@ -363,6 +395,12 @@ class FundTransactionController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            // Rollback database transaction nếu có lỗi
+            if (\DB::transactionLevel() > 0) {
+                \DB::rollBack();
+                \Log::warning('FundTransactionController::update - Database transaction rolled back due to error');
+            }
+            
             \Log::error('FundTransactionController::update - Error updating transaction:', [
                 'transaction_id' => $fundTransaction->id,
                 'error' => $e->getMessage(),
