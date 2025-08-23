@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('club_id')->constrained('clubs')->onDelete('cascade');
             $table->string('phone', 20);
-            $table->string('invite_token', 255)->unique();
+            $table->string('invite_token', 255)->nullable();
             $table->foreignId('invited_by')->constrained('users')->onDelete('cascade');
             $table->enum('status', ['pending', 'accepted', 'expired'])->default('pending');
             $table->timestamp('expires_at')->nullable();
