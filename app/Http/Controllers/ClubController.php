@@ -45,10 +45,16 @@ class ClubController extends Controller
                 'data' => $club
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error in ClubController::index:', [
+                'message' => $e->getMessage() ?: 'Unknown error',
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Error retrieving club information',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage() ?: 'Unknown error occurred'
             ], 500);
         }
     }
@@ -117,13 +123,13 @@ class ClubController extends Controller
             
         } catch (\Exception $e) {
             \Log::error('ClubController::getUserClubs - Error:', [
-                'error' => $e->getMessage(),
+                'error' => $e->getMessage() ?: 'Unknown error',
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Error retrieving user clubs',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage() ?: 'Unknown error occurred'
             ], 500);
         }
     }
@@ -168,10 +174,16 @@ class ClubController extends Controller
                 'data' => $club
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error in ClubController::getClubInfo:', [
+                'message' => $e->getMessage() ?: 'Unknown error',
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Error retrieving club information',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage() ?: 'Unknown error occurred'
             ], 500);
         }
     }
@@ -571,10 +583,17 @@ class ClubController extends Controller
             ]);
             
         } catch (\Exception $e) {
+            \Log::error('Error in getAvailableClubs:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Error retrieving available clubs',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage() ?: 'Unknown error occurred'
             ], 500);
         }
     }
