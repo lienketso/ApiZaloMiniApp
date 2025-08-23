@@ -249,11 +249,21 @@ class FundTransactionController extends Controller
         try {
             \Log::info('FundTransactionController::update - Updating transaction:', [
                 'transaction_id' => $fundTransaction->id,
-                'request_data' => $request->all()
+                'transaction_club_id' => $fundTransaction->club_id,
+                'request_data' => $request->all(),
+                'request_headers' => $request->headers->all()
             ]);
 
             // Lấy club_id từ request hoặc header
-            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
+            $clubIdFromInput = $request->input('club_id');
+            $clubIdFromHeader = $request->header('X-Club-ID');
+            $clubId = $clubIdFromInput ?? $clubIdFromHeader;
+            
+            \Log::info('FundTransactionController::update - Club ID extraction:', [
+                'club_id_from_input' => $clubIdFromInput,
+                'club_id_from_header' => $clubIdFromHeader,
+                'final_club_id' => $clubId
+            ]);
             
             if (!$clubId) {
                 \Log::warning('FundTransactionController::update - No club_id provided');
@@ -264,10 +274,14 @@ class FundTransactionController extends Controller
             }
 
             // Kiểm tra xem giao dịch có thuộc club này không
-            if ($fundTransaction->club_id != $clubId) {
+            if ((int)$fundTransaction->club_id !== (int)$clubId) {
                 \Log::warning('FundTransactionController::update - Transaction does not belong to club:', [
                     'transaction_club_id' => $fundTransaction->club_id,
-                    'request_club_id' => $clubId
+                    'transaction_club_id_type' => gettype($fundTransaction->club_id),
+                    'request_club_id' => $clubId,
+                    'request_club_id_type' => gettype($clubId),
+                    'strict_equal' => (int)$fundTransaction->club_id === (int)$clubId,
+                    'loose_equal' => $fundTransaction->club_id == $clubId
                 ]);
                 return response()->json([
                     'success' => false,
