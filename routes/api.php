@@ -324,12 +324,12 @@ Route::delete('/clubs/{id}', [ClubController::class, 'destroy']);
 // Route::delete('/members/{id}', [MemberController::class, 'destroy']);
 
 // Club Members
+Route::get('/user-clubs/check-status', [UserClubController::class, 'checkStatus']);
 Route::get('/user-clubs', [UserClubController::class, 'index']);
 Route::post('/user-clubs', [UserClubController::class, 'store']);
 Route::get('/user-clubs/{id}', [UserClubController::class, 'show']);
 Route::put('/user-clubs/{id}', [UserClubController::class, 'update']);
 Route::delete('/user-clubs/{id}', [UserClubController::class, 'destroy']);
-Route::get('/user-clubs/check-status', [UserClubController::class, 'checkStatus']);
 
 // Invitations
 Route::post('/invitations', [InvitationController::class, 'store']);
