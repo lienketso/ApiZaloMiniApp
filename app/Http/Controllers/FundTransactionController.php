@@ -24,8 +24,15 @@ class FundTransactionController extends Controller
         }
         
         // Nếu không có auth, thử lấy từ request hoặc sử dụng fallback
-        if ($request && $request->has('club_id')) {
-            return $request->input('club_id');
+        if ($request) {
+            // Ưu tiên lấy từ query params trước
+            if ($request->query('club_id')) {
+                return $request->query('club_id');
+            }
+            // Sau đó lấy từ input
+            if ($request->input('club_id')) {
+                return $request->input('club_id');
+            }
         }
         
         // Fallback: lấy club đầu tiên
@@ -40,7 +47,10 @@ class FundTransactionController extends Controller
     {
         try {
             \Log::info('FundTransactionController::index - Fetching transactions:', [
-                'request_params' => $request->all()
+                'request_params' => $request->all(),
+                'query_params' => $request->query(),
+                'club_id_from_query' => $request->query('club_id'),
+                'club_id_from_input' => $request->input('club_id')
             ]);
 
             $clubId = $this->getCurrentUserClubId($request);
@@ -89,7 +99,9 @@ class FundTransactionController extends Controller
 
             \Log::info('FundTransactionController::index - Found transactions:', [
                 'count' => $transactions->count(),
-                'club_id' => $clubId
+                'club_id' => $clubId,
+                'sample_transaction' => $transactions->first() ? $transactions->first()->toArray() : null,
+                'all_transactions_club_ids' => $transactions->pluck('club_id')->toArray()
             ]);
 
             return response()->json([
