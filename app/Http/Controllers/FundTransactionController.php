@@ -265,18 +265,36 @@ class FundTransactionController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, FundTransaction $fundTransaction)
+    public function update(Request $request, $id)
     {
         try {
-            \Log::info('FundTransactionController::update - Updating transaction:', [
-                'transaction_id' => $fundTransaction->id,
-                'transaction_club_id' => $fundTransaction->club_id,
+            \Log::info('FundTransactionController::update - Updating transaction with ID:', [
+                'requested_id' => $id,
                 'request_data' => $request->all(),
                 'request_headers' => $request->headers->all()
             ]);
             
             // Bắt đầu database transaction
             \DB::beginTransaction();
+            
+            // Manually find transaction
+            \Log::info('FundTransactionController::update - Looking for transaction with ID:', ['id' => $id, 'id_type' => gettype($id)]);
+            
+            $fundTransaction = FundTransaction::find($id);
+            if (!$fundTransaction) {
+                \Log::warning('FundTransactionController::update - Transaction not found:', ['id' => $id]);
+                \DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy giao dịch'
+                ], 404);
+            }
+            
+            \Log::info('FundTransactionController::update - Found transaction:', [
+                'transaction_id' => $fundTransaction->id,
+                'transaction_club_id' => $fundTransaction->club_id,
+                'transaction_data' => $fundTransaction->toArray()
+            ]);
 
             // Lấy club_id từ request hoặc header
             $clubIdFromInput = $request->input('club_id');
@@ -371,8 +389,19 @@ class FundTransactionController extends Controller
             
             $fundTransaction->update($updateData);
             
+            \Log::info('FundTransactionController::update - Update query executed, checking result');
+            
             // Refresh model để lấy data mới nhất
             $fundTransaction->refresh();
+            
+            \Log::info('FundTransactionController::update - After refresh:', [
+                'transaction_id' => $fundTransaction->id,
+                'club_id' => $fundTransaction->club_id,
+                'amount' => $fundTransaction->amount,
+                'status' => $fundTransaction->status,
+                'category' => $fundTransaction->category,
+                'description' => $fundTransaction->description
+            ]);
 
             $fundTransaction->load(['creator', 'user']);
 
