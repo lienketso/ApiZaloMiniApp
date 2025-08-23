@@ -106,7 +106,6 @@ class FundTransactionController extends Controller
         }
         
         // Xử lý tạo giao dịch mới
-    {
         try {
             $validator = Validator::make($request->all(), [
                 'type' => 'required|in:income,expense',
