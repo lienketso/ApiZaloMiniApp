@@ -46,12 +46,7 @@ class FundTransactionController extends Controller
     public function index(Request $request)
     {
         try {
-            \Log::info('FundTransactionController::index - Fetching transactions:', [
-                'request_params' => $request->all(),
-                'query_params' => $request->query(),
-                'club_id_from_query' => $request->query('club_id'),
-                'club_id_from_input' => $request->input('club_id')
-            ]);
+
 
             $clubId = $this->getCurrentUserClubId($request);
             
@@ -63,16 +58,11 @@ class FundTransactionController extends Controller
                 ], 404);
             }
 
-            \Log::info('FundTransactionController::index - Using club_id:', ['club_id' => $clubId]);
+
 
             // Cập nhật club_id cho transactions cũ có club_id = NULL
             $updatedCount = FundTransaction::whereNull('club_id')->update(['club_id' => $clubId]);
-            if ($updatedCount > 0) {
-                \Log::info('FundTransactionController::index - Updated club_id for old transactions:', [
-                    'updated_count' => $updatedCount,
-                    'club_id' => $clubId
-                ]);
-            }
+
 
             $query = FundTransaction::with(['creator', 'user'])
                 ->byClub($clubId);
@@ -97,12 +87,7 @@ class FundTransactionController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            \Log::info('FundTransactionController::index - Found transactions:', [
-                'count' => $transactions->count(),
-                'club_id' => $clubId,
-                'sample_transaction' => $transactions->first() ? $transactions->first()->toArray() : null,
-                'all_transactions_club_ids' => $transactions->pluck('club_id')->toArray()
-            ]);
+
 
             return response()->json([
                 'success' => true,
@@ -268,17 +253,13 @@ class FundTransactionController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            \Log::info('FundTransactionController::update - Updating transaction with ID:', [
-                'requested_id' => $id,
-                'request_data' => $request->all(),
-                'request_headers' => $request->headers->all()
-            ]);
+
             
             // Bắt đầu database transaction
             \DB::beginTransaction();
             
             // Manually find transaction
-            \Log::info('FundTransactionController::update - Looking for transaction with ID:', ['id' => $id, 'id_type' => gettype($id)]);
+
             
             $fundTransaction = FundTransaction::find($id);
             if (!$fundTransaction) {
@@ -290,24 +271,14 @@ class FundTransactionController extends Controller
                 ], 404);
             }
             
-            \Log::info('FundTransactionController::update - Found transaction:', [
-                'transaction_id' => $fundTransaction->id,
-                'transaction_club_id' => $fundTransaction->club_id,
-                'transaction_data' => $fundTransaction->toArray()
-            ]);
+
 
             // Lấy club_id từ request hoặc header
             $clubIdFromInput = $request->input('club_id');
             $clubIdFromHeader = $request->header('X-Club-ID');
             $clubId = $clubIdFromInput ?? $clubIdFromHeader;
             
-            \Log::info('FundTransactionController::update - Club ID extraction:', [
-                'club_id_from_input' => $clubIdFromInput,
-                'club_id_from_header' => $clubIdFromHeader,
-                'final_club_id' => $clubId,
-                'all_request_inputs' => $request->all(),
-                'all_request_headers' => $request->headers->all()
-            ]);
+
             
             if (!$clubId) {
                 \Log::warning('FundTransactionController::update - No club_id provided');
