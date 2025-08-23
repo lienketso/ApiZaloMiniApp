@@ -39,14 +39,21 @@ class FundTransactionController extends Controller
     public function index(Request $request)
     {
         try {
+            \Log::info('FundTransactionController::index - Fetching transactions:', [
+                'request_params' => $request->all()
+            ]);
+
             $clubId = $this->getCurrentUserClubId($request);
             
             if (!$clubId) {
+                \Log::warning('FundTransactionController::index - No club found');
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy câu lạc bộ'
                 ], 404);
             }
+
+            \Log::info('FundTransactionController::index - Using club_id:', ['club_id' => $clubId]);
 
             $query = FundTransaction::with(['creator', 'user'])
                 ->byClub($clubId);
@@ -71,12 +78,21 @@ class FundTransactionController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
+            \Log::info('FundTransactionController::index - Found transactions:', [
+                'count' => $transactions->count(),
+                'club_id' => $clubId
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $transactions,
                 'message' => 'Lấy danh sách giao dịch thành công'
             ]);
         } catch (\Exception $e) {
+            \Log::error('FundTransactionController::index - Error fetching transactions:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy danh sách giao dịch: ' . $e->getMessage()
@@ -107,16 +123,25 @@ class FundTransactionController extends Controller
         
         // Xử lý tạo giao dịch mới
         try {
+            \Log::info('FundTransactionController::store - Creating new transaction:', [
+                'request_data' => $request->all()
+            ]);
+
             $validator = Validator::make($request->all(), [
                 'type' => 'required|in:income,expense',
                 'amount' => 'required|numeric|min:0',
                 'description' => 'required|string|max:255',
                 'category' => 'nullable|string|max:100',
                 'transaction_date' => 'required|date',
-                'notes' => 'nullable|string'
+                'notes' => 'nullable|string',
+                'status' => 'required|in:pending,completed,cancelled',
+                'user_id' => 'nullable|exists:users,id'
             ]);
 
             if ($validator->fails()) {
+                \Log::warning('FundTransactionController::store - Validation failed:', [
+                    'errors' => $validator->errors()
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Dữ liệu không hợp lệ',
@@ -127,11 +152,14 @@ class FundTransactionController extends Controller
             $clubId = $this->getCurrentUserClubId($request);
             
             if (!$clubId) {
+                \Log::warning('FundTransactionController::store - No club found');
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy câu lạc bộ'
                 ], 404);
             }
+
+            \Log::info('FundTransactionController::store - Using club_id:', ['club_id' => $clubId]);
 
             // Lấy user ID từ auth hoặc từ request
             $userId = Auth::id() ?? $request->input('created_by', 1);
@@ -144,10 +172,17 @@ class FundTransactionController extends Controller
                 'category' => $request->category,
                 'transaction_date' => $request->transaction_date,
                 'notes' => $request->notes,
+                'status' => $request->status,
+                'user_id' => $request->user_id,
                 'created_by' => $userId
             ]);
 
             $transaction->load(['creator', 'user']);
+
+            \Log::info('FundTransactionController::store - Transaction created successfully:', [
+                'transaction_id' => $transaction->id,
+                'club_id' => $transaction->club_id
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -156,6 +191,10 @@ class FundTransactionController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
+            \Log::error('FundTransactionController::store - Error creating transaction:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi thêm giao dịch: ' . $e->getMessage()
@@ -169,6 +208,11 @@ class FundTransactionController extends Controller
     public function show(fundTransaction $fundTransaction)
     {
         try {
+            \Log::info('FundTransactionController::show - Fetching transaction:', [
+                'transaction_id' => $fundTransaction->id,
+                'club_id' => $fundTransaction->club_id
+            ]);
+
             $fundTransaction->load(['creator', 'user']);
 
             return response()->json([
@@ -177,6 +221,11 @@ class FundTransactionController extends Controller
                 'message' => 'Lấy thông tin giao dịch thành công'
             ]);
         } catch (\Exception $e) {
+            \Log::error('FundTransactionController::show - Error fetching transaction:', [
+                'transaction_id' => $fundTransaction->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy thông tin giao dịch: ' . $e->getMessage()
@@ -198,16 +247,49 @@ class FundTransactionController extends Controller
     public function update(Request $request, FundTransaction $fundTransaction)
     {
         try {
+            \Log::info('FundTransactionController::update - Updating transaction:', [
+                'transaction_id' => $fundTransaction->id,
+                'request_data' => $request->all()
+            ]);
+
+            // Lấy club_id từ request hoặc header
+            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
+            
+            if (!$clubId) {
+                \Log::warning('FundTransactionController::update - No club_id provided');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'club_id is required'
+                ], 400);
+            }
+
+            // Kiểm tra xem giao dịch có thuộc club này không
+            if ($fundTransaction->club_id != $clubId) {
+                \Log::warning('FundTransactionController::update - Transaction does not belong to club:', [
+                    'transaction_club_id' => $fundTransaction->club_id,
+                    'request_club_id' => $clubId
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không có quyền cập nhật giao dịch này'
+                ], 403);
+            }
+
             $validator = Validator::make($request->all(), [
                 'type' => 'sometimes|in:income,expense',
                 'amount' => 'sometimes|numeric|min:0',
                 'description' => 'sometimes|string|max:255',
                 'category' => 'nullable|string|max:100',
                 'transaction_date' => 'sometimes|date',
-                'notes' => 'nullable|string'
+                'notes' => 'nullable|string',
+                'status' => 'sometimes|in:pending,completed,cancelled',
+                'user_id' => 'nullable|exists:users,id'
             ]);
 
             if ($validator->fails()) {
+                \Log::warning('FundTransactionController::update - Validation failed:', [
+                    'errors' => $validator->errors()
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Dữ liệu không hợp lệ',
@@ -215,11 +297,18 @@ class FundTransactionController extends Controller
                 ], 422);
             }
 
+            \Log::info('FundTransactionController::update - Validation passed, updating transaction');
+
             $fundTransaction->update($request->only([
-                'type', 'amount', 'description', 'category', 'transaction_date', 'notes'
+                'type', 'amount', 'description', 'category', 'transaction_date', 'notes', 'status', 'user_id'
             ]));
 
             $fundTransaction->load(['creator', 'user']);
+
+            \Log::info('FundTransactionController::update - Transaction updated successfully:', [
+                'transaction_id' => $fundTransaction->id,
+                'updated_data' => $fundTransaction->toArray()
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -228,6 +317,11 @@ class FundTransactionController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('FundTransactionController::update - Error updating transaction:', [
+                'transaction_id' => $fundTransaction->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi cập nhật giao dịch: ' . $e->getMessage()
@@ -356,12 +450,20 @@ class FundTransactionController extends Controller
     public function updateTransactionStatus(Request $request, $id): JsonResponse
     {
         try {
+            \Log::info('FundTransactionController::updateTransactionStatus - Updating transaction status:', [
+                'transaction_id' => $id,
+                'request_data' => $request->all()
+            ]);
+
             $validator = Validator::make($request->all(), [
                 'status' => 'required|in:pending,completed,cancelled',
                 'club_id' => 'required|integer|exists:clubs,id'
             ]);
 
             if ($validator->fails()) {
+                \Log::warning('FundTransactionController::updateTransactionStatus - Validation failed:', [
+                    'errors' => $validator->errors()
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Dữ liệu không hợp lệ',
@@ -371,24 +473,36 @@ class FundTransactionController extends Controller
 
             $clubId = $request->input('club_id');
             
+            \Log::info('FundTransactionController::updateTransactionStatus - Using club_id:', ['club_id' => $clubId]);
+            
             // Tìm giao dịch theo ID và club_id
             $transaction = FundTransaction::where('id', $id)
                 ->where('club_id', $clubId)
                 ->first();
 
             if (!$transaction) {
+                \Log::warning('FundTransactionController::updateTransactionStatus - Transaction not found:', [
+                    'transaction_id' => $id,
+                    'club_id' => $clubId
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy giao dịch quỹ'
                 ], 404);
             }
 
+            \Log::info('FundTransactionController::updateTransactionStatus - Found transaction:', [
+                'transaction_id' => $transaction->id,
+                'club_id' => $transaction->club_id,
+                'old_status' => $transaction->status
+            ]);
+
             // Cập nhật trạng thái
             $oldStatus = $transaction->status;
             $transaction->update(['status' => $request->status]);
 
             // Log thay đổi trạng thái
-            \Log::info('FundTransaction status updated:', [
+            \Log::info('FundTransactionController::updateTransactionStatus - Status updated successfully:', [
                 'transaction_id' => $transaction->id,
                 'old_status' => $oldStatus,
                 'new_status' => $request->status,
@@ -403,6 +517,11 @@ class FundTransactionController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('FundTransactionController::updateTransactionStatus - Error updating status:', [
+                'transaction_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi cập nhật trạng thái: ' . $e->getMessage()
@@ -416,12 +535,19 @@ class FundTransactionController extends Controller
     public function getTransactionsByStatus(Request $request): JsonResponse
     {
         try {
+            \Log::info('FundTransactionController::getTransactionsByStatus - Fetching transactions by status:', [
+                'request_data' => $request->all()
+            ]);
+
             $validator = Validator::make($request->all(), [
                 'status' => 'required|in:pending,completed,cancelled',
                 'club_id' => 'required|integer|exists:clubs,id'
             ]);
 
             if ($validator->fails()) {
+                \Log::warning('FundTransactionController::getTransactionsByStatus - Validation failed:', [
+                    'errors' => $validator->errors()
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Dữ liệu không hợp lệ',
@@ -432,12 +558,23 @@ class FundTransactionController extends Controller
             $clubId = $request->input('club_id');
             $status = $request->input('status');
 
+            \Log::info('FundTransactionController::getTransactionsByStatus - Using club_id and status:', [
+                'club_id' => $clubId,
+                'status' => $status
+            ]);
+
             $transactions = FundTransaction::with(['creator', 'club', 'user'])
                 ->where('club_id', $clubId)
                 ->where('status', $status)
                 ->orderBy('transaction_date', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get();
+
+            \Log::info('FundTransactionController::getTransactionsByStatus - Found transactions:', [
+                'count' => $transactions->count(),
+                'club_id' => $clubId,
+                'status' => $status
+            ]);
 
             $statusLabels = [
                 'pending' => 'Chờ nộp',
@@ -457,6 +594,10 @@ class FundTransactionController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('FundTransactionController::getTransactionsByStatus - Error fetching transactions:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy danh sách giao dịch: ' . $e->getMessage()
@@ -465,17 +606,22 @@ class FundTransactionController extends Controller
     }
 
     // Thống kê quỹ
-    public function getFundStats(): JsonResponse
+    public function getFundStats(Request $request = null): JsonResponse
     {
         try {
-            $clubId = $this->getCurrentUserClubId();
+            \Log::info('FundTransactionController::getFundStats - Fetching fund statistics');
+            
+            $clubId = $this->getCurrentUserClubId($request);
             
             if (!$clubId) {
+                \Log::warning('FundTransactionController::getFundStats - No club found');
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy câu lạc bộ'
                 ], 404);
             }
+
+            \Log::info('FundTransactionController::getFundStats - Using club_id:', ['club_id' => $clubId]);
 
             $currentMonth = now()->month;
             $currentYear = now()->year;
@@ -542,8 +688,19 @@ class FundTransactionController extends Controller
                 'pending_income' => $pendingIncome, // Thu chờ nộp
                 'pending_expense' => $pendingExpense, // Chi chờ xử lý
                 'pending_count' => $pendingTransactions->count(),
-                'recent_transactions' => $recentTransactions
+                'recent_transactions' => $recentTransactions,
+                'club_id' => $clubId
             ];
+
+            \Log::info('FundTransactionController::getFundStats - Statistics calculated successfully:', [
+                'club_id' => $clubId,
+                'total_fund' => $calculatedTotalFund,
+                'monthly_income' => $monthlyIncome,
+                'monthly_expense' => $monthlyExpense,
+                'pending_count' => $pendingTransactions->count(),
+                'pending_income' => $pendingIncome,
+                'pending_expense' => $pendingExpense
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -552,6 +709,10 @@ class FundTransactionController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('FundTransactionController::getFundStats - Error calculating statistics:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy thống kê quỹ: ' . $e->getMessage()
