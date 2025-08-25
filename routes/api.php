@@ -16,6 +16,7 @@ use App\Http\Controllers\UserClubController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WebAuthController;
 use App\Http\Controllers\ZaloAuthController;
+use App\Http\Controllers\LeaderboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -427,13 +428,15 @@ Route::get('/club-members', function (Request $request) {
             })
             ->select('id', 'name', 'avatar', 'phone')
             ->get()
-            ->map(function ($user) {
+            ->map(function ($user) use ($clubId) {
+                $userClub = $user->clubs->where('id', $clubId)->first();
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
                     'avatar' => $user->avatar,
                     'phone' => $user->phone,
-                    'role' => $user->clubs->first()->pivot->role ?? 'member'
+                    'role' => $userClub->pivot->role ?? 'member',
+                    'joined_date' => $userClub->pivot->created_at ?? now()
                 ];
             });
         
@@ -448,6 +451,11 @@ Route::get('/club-members', function (Request $request) {
         ], 500);
     }
 });
+
+// Leaderboard
+Route::get('/leaderboard/wins', [LeaderboardController::class, 'getWinsLeaderboard']);
+Route::get('/leaderboard/fund-contributions', [LeaderboardController::class, 'getFundContributionsLeaderboard']);
+Route::get('/leaderboard/attendance', [LeaderboardController::class, 'getAttendanceLeaderboard']);
 
 // Debug route để kiểm tra teams
 Route::get('/debug/teams/{matchId}', function ($matchId) {
