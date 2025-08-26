@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('price', 10, 2); // Giá gói
             $table->string('billing_cycle'); // Chu kỳ thanh toán (monthly, yearly)
             $table->integer('duration_days'); // Số ngày có hiệu lực
-            $table->json('features')->nullable(); // Các tính năng của gói
+            $table->text('features')->nullable(); // Các tính năng của gói
             $table->boolean('is_active')->default(true); // Gói có đang hoạt động không
             $table->timestamps();
         });
