@@ -312,6 +312,7 @@ Route::get('/clubs/available', [ClubController::class, 'getAvailableClubs']);
 Route::post('/clubs/join', [ClubController::class, 'joinClub']);
 Route::post('/clubs/leave', [ClubController::class, 'leaveClub']);
 Route::get('/clubs/status', [ClubController::class, 'checkClubStatus']);
+Route::get('/clubs/user-count', [ClubController::class, 'getUserClubCount']);
 Route::get('/clubs/test', [ClubController::class, 'test']);
 Route::get('/clubs/{id}', [ClubController::class, 'show']);
 Route::put('/clubs/{id}', [ClubController::class, 'update']);

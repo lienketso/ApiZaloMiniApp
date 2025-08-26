@@ -278,6 +278,18 @@ class ClubController extends Controller
                 ], 401);
             }
 
+            // Kiểm tra số lượng câu lạc bộ đã tạo bởi user
+            $existingClubsCount = Club::where('created_by', $userId)->count();
+            if ($existingClubsCount >= 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bạn đã tạo tối đa 2 câu lạc bộ. Không thể tạo thêm câu lạc bộ mới.',
+                    'code' => 'MAX_CLUBS_REACHED',
+                    'existing_count' => $existingClubsCount,
+                    'max_allowed' => 2
+                ], 422);
+            }
+
             // Bắt đầu transaction để đảm bảo tính nhất quán
             DB::beginTransaction();
             
@@ -328,6 +340,42 @@ class ClubController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error setting up club',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get the number of clubs created by the current user
+     */
+    public function getUserClubCount()
+    {
+        try {
+            $userId = $this->getCurrentUserId();
+
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            $clubsCount = Club::where('created_by', $userId)->count();
+            $maxAllowed = 2;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'current_count' => $clubsCount,
+                    'max_allowed' => $maxAllowed,
+                    'can_create_more' => $clubsCount < $maxAllowed,
+                    'remaining_slots' => max(0, $maxAllowed - $clubsCount)
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error getting user club count',
                 'error' => $e->getMessage()
             ], 500);
         }
