@@ -21,11 +21,19 @@ class Club extends Model
         'account_name',
         'account_number',
         'is_setup',
-        'created_by'
+        'created_by',
+        'trial_expired_at',
+        'subscription_expired_at',
+        'subscription_status',
+        'plan_id',
+        'last_payment_at'
     ];
 
     protected $casts = [
         'is_setup' => 'boolean',
+        'trial_expired_at' => 'datetime',
+        'subscription_expired_at' => 'datetime',
+        'last_payment_at' => 'datetime',
     ];
 
     /**
@@ -34,6 +42,14 @@ class Club extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the club's current plan
+     */
+    public function plan()
+    {
+        return $this->belongsTo(Plan::class);
     }
 
     /**
@@ -87,5 +103,87 @@ class Club extends Model
             !empty($this->name) &&
             !empty($this->sport) &&
             !empty($this->address);
+    }
+
+    /**
+     * Check if club is in trial period
+     */
+    public function isInTrial()
+    {
+        return $this->subscription_status === 'trial' && 
+               $this->trial_expired_at && 
+               $this->trial_expired_at->isFuture();
+    }
+
+    /**
+     * Check if club has active subscription
+     */
+    public function hasActiveSubscription()
+    {
+        return $this->subscription_status === 'active' && 
+               $this->subscription_expired_at && 
+               $this->subscription_expired_at->isFuture();
+    }
+
+    /**
+     * Check if club subscription is expired
+     */
+    public function isSubscriptionExpired()
+    {
+        return $this->subscription_status === 'expired' || 
+               ($this->subscription_expired_at && $this->subscription_expired_at->isPast());
+    }
+
+    /**
+     * Start trial period for club (1 month)
+     */
+    public function startTrial()
+    {
+        $this->update([
+            'subscription_status' => 'trial',
+            'trial_expired_at' => now()->addMonth(),
+            'plan_id' => null,
+            'subscription_expired_at' => null,
+            'last_payment_at' => null
+        ]);
+    }
+
+    /**
+     * Activate subscription for club
+     */
+    public function activateSubscription($planId, $durationDays = null)
+    {
+        $plan = Plan::find($planId);
+        if (!$plan) {
+            throw new \Exception('Plan not found');
+        }
+
+        $duration = $durationDays ?? $plan->duration_days;
+        
+        $this->update([
+            'subscription_status' => 'active',
+            'plan_id' => $planId,
+            'subscription_expired_at' => now()->addDays($duration),
+            'trial_expired_at' => null,
+            'last_payment_at' => now()
+        ]);
+    }
+
+    /**
+     * Cancel subscription for club
+     */
+    public function cancelSubscription()
+    {
+        $this->update([
+            'subscription_status' => 'canceled'
+        ]);
+    }
+
+    /**
+     * Check if club can access premium features
+     */
+    public function canAccessPremiumFeatures()
+    {
+        return $this->isInTrial() || $this->hasActiveSubscription();
     }
 }

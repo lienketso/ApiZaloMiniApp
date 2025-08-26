@@ -485,3 +485,11 @@ Route::get('/debug/teams/{matchId}', function ($matchId) {
         ], 500);
     }
 });
+
+// Subscription routes
+Route::get('/subscription/plans', [App\Http\Controllers\SubscriptionController::class, 'getPlans']);
+Route::get('/subscription/club/{clubId}', [App\Http\Controllers\SubscriptionController::class, 'getClubSubscriptionInfo']);
+Route::post('/subscription/club/{clubId}/trial', [App\Http\Controllers\SubscriptionController::class, 'startTrial']);
+Route::post('/subscription/club/{clubId}/activate', [App\Http\Controllers\SubscriptionController::class, 'activateSubscription']);
+Route::post('/subscription/club/{clubId}/cancel', [App\Http\Controllers\SubscriptionController::class, 'cancelSubscription']);
+Route::post('/subscription/club/{clubId}/check-permission', [App\Http\Controllers\SubscriptionController::class, 'checkActionPermission']);

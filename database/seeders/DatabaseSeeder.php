@@ -27,6 +27,11 @@ class DatabaseSeeder extends Seeder
             $user = User::factory()->create();
         }
 
+        // Seed plans first
+        $this->call([
+            PlanSeeder::class,
+        ]);
+
         $transactions = [
             [
                 'type' => 'income',
