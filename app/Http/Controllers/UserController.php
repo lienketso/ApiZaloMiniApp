@@ -79,6 +79,8 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20',
             'email' => 'nullable|email|max:255',
+            'gender' => 'nullable|in:male,female,other',
+            'birthday' => 'nullable|date',
             'zalo_gid' => 'nullable|string', // Cho phép zalo_gid trong validation nhưng không cập nhật
         ]);
 

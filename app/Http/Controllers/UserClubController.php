@@ -171,6 +171,8 @@ class UserClubController extends Controller
                         'name' => $userClub->user->name ?? 'Không xác định',
                         'phone' => $userClub->user->phone ?? null,
                         'email' => $userClub->user->email ?? null,
+                        'gender' => $userClub->user->gender ?? null,
+                        'birthday' => $userClub->user->birthday ?? null,
                         'role' => $userClub->role,
                         'club_role' => $userClub->role,
                         'joined_date' => $userClub->joined_date,
@@ -232,6 +234,8 @@ class UserClubController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
+            'birthday' => 'nullable|date',
             'club_id' => 'required|exists:clubs,id',
             'club_role' => 'required|in:member,admin,guest',
             'joined_date' => 'nullable|date',
@@ -253,6 +257,8 @@ class UserClubController extends Controller
                     'name' => $request->name,
                     'phone' => $request->phone,
                     'email' => $request->email,
+                    'gender' => $request->gender,
+                    'birthday' => $request->birthday,
                     'password' => bcrypt('default_password'), // Có thể thay đổi sau
                 ]);
             }
@@ -288,12 +294,14 @@ class UserClubController extends Controller
                 'name' => $userClub->user->name,
                 'phone' => $userClub->user->phone,
                 'email' => $userClub->user->email,
+                'gender' => $userClub->user->gender,
+                'birthday' => $userClub->user->birthday,
                 'role' => $userClub->role,
                 'club_role' => $userClub->role,
                 'joined_date' => $userClub->joined_date,
                 'created_at' => $userClub->created_at,
                 'updated_at' => $userClub->updated_at,
-                'notes' => $userClub->notes,
+                'notes' => $userClub->user->notes,
                 'avatar' => null,
                 'is_active' => $userClub->is_active,
             ];
@@ -357,6 +365,8 @@ class UserClubController extends Controller
             'name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
+            'birthday' => 'nullable|date',
             'club_role' => 'nullable|in:member,admin,guest',
             'notes' => 'nullable|string',
             'is_active' => 'boolean',
@@ -366,9 +376,9 @@ class UserClubController extends Controller
             $userClub = UserClub::findOrFail($id);
             
             // Cập nhật thông tin user nếu có
-            if ($request->has('name') || $request->has('phone') || $request->has('email')) {
+            if ($request->has('name') || $request->has('phone') || $request->has('email') || $request->has('gender') || $request->has('birthday')) {
                 $user = $userClub->user;
-                $user->update($request->only(['name', 'phone', 'email']));
+                $user->update($request->only(['name', 'phone', 'email', 'gender', 'birthday']));
             }
 
             // Cập nhật thông tin user club
@@ -383,6 +393,8 @@ class UserClubController extends Controller
                 'name' => $userClub->user->name,
                 'phone' => $userClub->user->phone,
                 'email' => $userClub->user->email,
+                'gender' => $userClub->user->gender,
+                'birthday' => $userClub->user->birthday,
                 'role' => $userClub->role,
                 'club_role' => $userClub->role,
                 'joined_date' => $userClub->joined_date,
