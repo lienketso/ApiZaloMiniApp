@@ -280,13 +280,13 @@ class ClubController extends Controller
 
             // Kiểm tra số lượng câu lạc bộ đã tạo bởi user
             $existingClubsCount = Club::where('created_by', $userId)->count();
-            if ($existingClubsCount >= 2) {
+            if ($existingClubsCount > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Bạn đã tạo tối đa 2 câu lạc bộ. Không thể tạo thêm câu lạc bộ mới.',
+                    'message' => 'Bạn chỉ được phép tạo 1 câu lạc bộ. Không thể tạo thêm câu lạc bộ mới.',
                     'code' => 'MAX_CLUBS_REACHED',
                     'existing_count' => $existingClubsCount,
-                    'max_allowed' => 2
+                    'max_allowed' => 1
                 ], 422);
             }
 
