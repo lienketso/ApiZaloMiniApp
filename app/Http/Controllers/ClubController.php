@@ -307,7 +307,7 @@ class ClubController extends Controller
                     'account_name' => $request->account_name,
                     'account_number' => $request->account_number,
                     'is_setup' => true,
-                    'created_by' => $userId
+                    'created_by' => $userId,
                 ]);
 
                 // Lấy thông tin user để tạo member
@@ -318,7 +318,8 @@ class ClubController extends Controller
                     'role' => 'admin',
                     'joined_date' => now(),
                     'notes' => 'Club owner',
-                    'is_active' => true
+                    'is_active' => true,
+                    'status' => 'active'
                 ]);
 
                 // Commit transaction

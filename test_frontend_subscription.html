@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Frontend Subscription</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .club-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: white;
+        }
+        .subscription-info {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 12px 0;
+            border-left: 4px solid #007bff;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-trial { background: #d1ecf1; color: #0c5460; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-expired { background: #f8d7da; color: #721c24; }
+        .status-canceled { background: #e2e3e5; color: #383d41; }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 4px;
+        }
+        .button:hover { background: #0056b3; }
+        .button.secondary { background: #6c757d; }
+        .button.secondary:hover { background: #545b62; }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .feature-list li:before {
+            content: "✓ ";
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Frontend Subscription System</h1>
+    
+    <div class="container">
+        <h2>📋 Danh sách câu lạc bộ với thông tin gói</h2>
+        <p>Dưới đây là demo hiển thị thông tin subscription của các câu lạc bộ:</p>
+    </div>
+
+    <!-- Club 1: Trial -->
+    <div class="club-card">
+        <h3>🏆 Club đàn gà</h3>
+        <p><strong>Môn thể thao:</strong> Cầu lông</p>
+        <p><strong>Địa chỉ:</strong> 123 Đường ABC, Quận 1, TP.HCM</p>
+        
+        <div class="subscription-info">
+            <h4>📦 Thông tin gói</h4>
+            <span class="status-badge status-trial">Dùng thử</span>
+            <p><strong>Trạng thái:</strong> Đang trong thời gian dùng thử</p>
+            <p><strong>Hết hạn dùng thử:</strong> 26/09/2025 (còn 30 ngày)</p>
+            <p><strong>Quyền truy cập:</strong> Tất cả tính năng premium</p>
+            
+            <div style="margin-top: 12px;">
+                <button class="button" onclick="startTrial(1)">Bắt đầu dùng thử</button>
+                <button class="button secondary" onclick="upgradePlan(1)">Nâng cấp gói</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Club 2: Active -->
+    <div class="club-card">
+        <h3>⚽ Đàn gà club</h3>
+        <p><strong>Môn thể thao:</strong> Bóng đá</p>
+        <p><strong>Địa chỉ:</strong> 456 Đường XYZ, Quận 2, TP.HCM</p>
+        
+        <div class="subscription-info">
+            <h4>📦 Thông tin gói</h4>
+            <span class="status-badge status-active">Đang hoạt động</span>
+            <p><strong>Gói hiện tại:</strong> Premium</p>
+            <p><strong>Giá:</strong> 399.000 VNĐ / tháng</p>
+            <p><strong>Hết hạn:</strong> 25/09/2025 (còn 29 ngày)</p>
+            <p><strong>Lần thanh toán cuối:</strong> 26/08/2025</p>
+            
+            <h5>✨ Tính năng:</h5>
+            <ul class="feature-list">
+                <li>Tất cả tính năng Basic</li>
+                <li>Quản lý thành viên nâng cao</li>
+                <li>Thống kê chi tiết</li>
+                <li>Tích hợp Zalo</li>
+                <li>Hỗ trợ ưu tiên</li>
+            </ul>
+            
+            <div style="margin-top: 12px;">
+                <button class="button secondary" onclick="renewPlan(2)">Gia hạn gói</button>
+                <button class="button secondary" onclick="cancelPlan(2)">Hủy gói</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Club 3: Expired -->
+    <div class="club-card">
+        <h3>🏀 My Club</h3>
+        <p><strong>Môn thể thao:</strong> Bóng rổ</p>
+        <p><strong>Địa chỉ:</strong> 789 Đường DEF, Quận 3, TP.HCM</p>
+        
+        <div class="subscription-info">
+            <h4>📦 Thông tin gói</h4>
+            <span class="status-badge status-expired">Hết hạn</span>
+            <p><strong>Trạng thái:</strong> Gói đã hết hạn</p>
+            <p><strong>Quyền truy cập:</strong> Chỉ tính năng cơ bản</p>
+            <p><strong>Hạn chế:</strong> Không thể tạo sự kiện, quản lý thành viên</p>
+            
+            <div style="margin-top: 12px;">
+                <button class="button" onclick="reactivatePlan(3)">Kích hoạt lại gói</button>
+                <button class="button secondary" onclick="viewPlans(3)">Xem gói mới</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Club 4: Canceled -->
+    <div class="club-card">
+        <h3>🎾 Test Football Club</h3>
+        <p><strong>Môn thể thao:</strong> Tennis</p>
+        <p><strong>Địa chỉ:</strong> 321 Đường GHI, Quận 4, TP.HCM</p>
+        
+        <div class="subscription-info">
+            <h4>📦 Thông tin gói</h4>
+            <span class="status-badge status-canceled">Đã hủy</span>
+            <p><strong>Trạng thái:</strong> Gói đã bị hủy</p>
+            <p><strong>Quyền truy cập:</strong> Chỉ tính năng cơ bản</p>
+            <p><strong>Lưu ý:</strong> Có thể đăng ký gói mới bất cứ lúc nào</p>
+            
+            <div style="margin-top: 12px;">
+                <button class="button" onclick="subscribeNewPlan(4)">Đăng ký gói mới</button>
+                <button class="button secondary" onclick="viewPlans(4)">So sánh gói</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🔧 API Endpoints Test</h2>
+        <p>Test các API endpoints subscription:</p>
+        
+        <div style="margin: 16px 0;">
+            <button class="button" onclick="testGetPlans()">GET /subscription/plans</button>
+            <button class="button secondary" onclick="testGetClubSubscription(1)">GET /subscription/club/1</button>
+        </div>
+        
+        <div id="api-results" style="background: #f8f9fa; padding: 16px; border-radius: 4px; margin-top: 16px;">
+            <p>Kết quả API sẽ hiển thị ở đây...</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📱 Frontend Components</h2>
+        <p>Các component đã được tạo:</p>
+        <ul>
+            <li><strong>SubscriptionInfo:</strong> Hiển thị thông tin gói cơ bản</li>
+            <li><strong>SubscriptionPage:</strong> Trang quản lý gói đầy đủ</li>
+            <li><strong>Tích hợp vào ClubList:</strong> Hiển thị thông tin gói trong danh sách</li>
+        </ul>
+    </div>
+
+    <script>
+        // Demo functions
+        function startTrial(clubId) {
+            alert(`Bắt đầu dùng thử cho club ${clubId}`);
+        }
+        
+        function upgradePlan(clubId) {
+            alert(`Nâng cấp gói cho club ${clubId}`);
+        }
+        
+        function renewPlan(clubId) {
+            alert(`Gia hạn gói cho club ${clubId}`);
+        }
+        
+        function cancelPlan(clubId) {
+            if (confirm('Bạn có chắc muốn hủy gói?')) {
+                alert(`Đã hủy gói cho club ${clubId}`);
+            }
+        }
+        
+        function reactivatePlan(clubId) {
+            alert(`Kích hoạt lại gói cho club ${clubId}`);
+        }
+        
+        function subscribeNewPlan(clubId) {
+            alert(`Đăng ký gói mới cho club ${clubId}`);
+        }
+        
+        function viewPlans(clubId) {
+            alert(`Xem gói cho club ${clubId}`);
+        }
+        
+        // API Test functions
+        async function testGetPlans() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<p>Đang test GET /subscription/plans...</p>';
+            
+            try {
+                const response = await fetch('https://api.lienketso.vn/public/api/subscription/plans');
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <h4>✅ GET /subscription/plans</h4>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <h4>❌ GET /subscription/plans</h4>
+                    <p>Lỗi: ${error.message}</p>
+                `;
+            }
+        }
+        
+        async function testGetClubSubscription(clubId) {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = `<p>Đang test GET /subscription/club/${clubId}...</p>`;
+            
+            try {
+                const response = await fetch(`https://api.lienketso.vn/public/api/subscription/club/${clubId}`);
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <h4>✅ GET /subscription/club/${clubId}</h4>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <h4>❌ GET /subscription/club/${clubId}</h4>
+                    <p>Lỗi: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
+
