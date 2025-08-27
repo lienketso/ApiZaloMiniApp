@@ -16,7 +16,7 @@ class ClubController extends Controller
     /**
      * Get club information
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
             $userId = $this->getCurrentUserId();
@@ -28,6 +28,21 @@ class ClubController extends Controller
                 ], 401);
             }
 
+            // Xử lý query parameters
+            $countOnly = $request->query('count_only', false);
+            $createdBy = $request->query('created_by', null);
+            $targetUserId = $createdBy ?: $userId;
+
+            // Nếu chỉ cần đếm số câu lạc bộ đã tạo
+            if ($countOnly) {
+                $count = Club::where('created_by', $targetUserId)->count();
+                return response()->json([
+                    'success' => true,
+                    'data' => $count
+                ]);
+            }
+
+            // Logic cũ - lấy thông tin câu lạc bộ
             $club = Club::where('created_by', $userId)->first();
 
             if (!$club) {
