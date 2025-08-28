@@ -493,3 +493,7 @@ Route::post('/subscription/club/{clubId}/trial', [App\Http\Controllers\Subscript
 Route::post('/subscription/club/{clubId}/activate', [App\Http\Controllers\SubscriptionController::class, 'activateSubscription']);
 Route::post('/subscription/club/{clubId}/cancel', [App\Http\Controllers\SubscriptionController::class, 'cancelSubscription']);
 Route::post('/subscription/club/{clubId}/check-permission', [App\Http\Controllers\SubscriptionController::class, 'checkActionPermission']);
+
+// Places API routes
+Route::get('/places/search', [App\Http\Controllers\PlacesController::class, 'search']);
+Route::get('/places/details', [App\Http\Controllers\PlacesController::class, 'details']);

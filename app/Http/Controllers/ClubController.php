@@ -272,7 +272,12 @@ class ClubController extends Controller
                 'description' => 'nullable|string',
                 'bank_name' => 'nullable|string|max:255',
                 'account_name' => 'nullable|string|max:255',
-                'account_number' => 'nullable|string|max:50'
+                'account_number' => 'nullable|string|max:50',
+                'latitude' => 'nullable|numeric|between:-90,90',
+                'longitude' => 'nullable|numeric|between:-180,180',
+                'place_id' => 'nullable|string|max:255',
+                'formatted_address' => 'nullable|string',
+                'map_url' => 'nullable|url|max:500'
             ]);
 
             if ($validator->fails()) {
@@ -321,6 +326,11 @@ class ClubController extends Controller
                     'bank_name' => $request->bank_name,
                     'account_name' => $request->account_name,
                     'account_number' => $request->account_number,
+                    'latitude' => $request->latitude,
+                    'longitude' => $request->longitude,
+                    'place_id' => $request->place_id,
+                    'formatted_address' => $request->formatted_address,
+                    'map_url' => $request->map_url,
                     'is_setup' => true,
                     'created_by' => $userId,
                 ]);
@@ -413,7 +423,12 @@ class ClubController extends Controller
                 'description' => 'nullable|string',
                 'bank_name' => 'nullable|string|max:255',
                 'account_name' => 'nullable|string|max:255',
-                'account_number' => 'nullable|string|max:50'
+                'account_number' => 'nullable|string|max:50',
+                'latitude' => 'nullable|numeric|between:-90,90',
+                'longitude' => 'nullable|numeric|between:-180,180',
+                'place_id' => 'nullable|string|max:255',
+                'formatted_address' => 'nullable|string',
+                'map_url' => 'nullable|url|max:500'
             ]);
 
             if ($validator->fails()) {
@@ -443,7 +458,9 @@ class ClubController extends Controller
             }
 
             $club->update($request->only([
-                'name', 'sport', 'logo', 'address', 'phone', 'email', 'description', 'bank_name', 'account_name', 'account_number'
+                'name', 'sport', 'logo', 'address', 'phone', 'email', 'description', 
+                'bank_name', 'account_name', 'account_number',
+                'latitude', 'longitude', 'place_id', 'formatted_address', 'map_url'
             ]));
 
             return response()->json([
