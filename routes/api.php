@@ -411,6 +411,7 @@ Route::put('/matches/{id}/cancel', [MatchController::class, 'cancelMatch']);
 // User profile - Sử dụng zalo_gid để xác thực
 Route::get('/user/profile', [UserController::class, 'profile']);
 Route::put('/user/profile', [UserController::class, 'updateProfile']);
+Route::post('/user/withdraw-consent', [UserController::class, 'withdrawConsentAndRemoveData']);
 
 // API để lấy club members
 Route::get('/club-members', function (Request $request) {

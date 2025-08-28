@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Models\User; // Added this import for the new method
 
@@ -226,6 +228,106 @@ class UserController extends Controller
                 'success' => false,
                 'message' => 'Lỗi khi tạo/cập nhật user: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Xử lý việc User rút lại sự đồng ý và xóa dữ liệu
+     */
+    public function withdrawConsentAndRemoveData(Request $request)
+    {
+        try {
+            // Lấy zalo_gid từ request
+            $zaloGid = $request->input('zalo_gid') ?? $request->header('X-Zalo-GID');
+
+            if (!$zaloGid) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'zalo_gid is required'
+                ], 400);
+            }
+
+            // Tìm user theo zalo_gid
+            $user = User::where('zalo_gid', $zaloGid)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found with this zalo_gid'
+                ], 404);
+            }
+
+            // Lưu thông tin user trước khi xóa để trả về
+            $userInfo = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'phone' => $user->phone,
+                'email' => $user->email,
+                'zalo_gid' => $user->zalo_gid,
+                'zalo_name' => $user->zalo_name,
+                'zalo_avatar' => $user->zalo_avatar,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+                'status' => 'removed'
+            ];
+
+            // Xóa các relationship data trước
+            $this->removeUserRelatedData($user);
+
+            // Xóa user
+            $user->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User đã rút lại sự đồng ý và dữ liệu đã được xóa thành công',
+                'data' => $userInfo,
+                'removed_at' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi xử lý yêu cầu rút lại sự đồng ý: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Xóa dữ liệu liên quan đến user
+     */
+    private function removeUserRelatedData(User $user)
+    {
+        try {
+            // Xóa user_clubs relationships
+            $user->userClubs()->delete();
+
+            // Xóa attendances
+            $user->attendances()->delete();
+
+            // Xóa events (nếu user là creator)
+            $user->events()->delete();
+
+            // Xóa fund transactions
+            $user->fundTransactions()->delete();
+
+            // Xóa game matches
+            $user->gameMatches()->delete();
+
+            // Xóa invitations (nếu user là sender)
+            \App\Models\Invitation::where('sender_id', $user->id)->delete();
+
+            // Xóa team players (nếu có)
+            \DB::table('team_players')->where('user_id', $user->id)->delete();
+
+            // Xóa các tokens nếu có
+            $user->tokens()->delete();
+
+        } catch (\Exception $e) {
+            // Log lỗi nhưng không dừng quá trình
+            \Log::error('Error removing user related data: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'zalo_gid' => $user->zalo_gid
+            ]);
         }
     }
 }
