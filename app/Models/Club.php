@@ -26,7 +26,12 @@ class Club extends Model
         'subscription_expired_at',
         'subscription_status',
         'plan_id',
-        'last_payment_at'
+        'last_payment_at',
+        'latitude',
+        'longitude',
+        'place_id',
+        'formatted_address',
+        'map_url'
     ];
 
     protected $casts = [
@@ -34,6 +39,8 @@ class Club extends Model
         'trial_expired_at' => 'datetime',
         'subscription_expired_at' => 'datetime',
         'last_payment_at' => 'datetime',
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8',
     ];
 
     /**
@@ -185,5 +192,69 @@ class Club extends Model
     public function canAccessPremiumFeatures()
     {
         return $this->isInTrial() || $this->hasActiveSubscription();
+    }
+
+    /**
+     * Check if club has location coordinates
+     */
+    public function hasLocation()
+    {
+        return !is_null($this->latitude) && !is_null($this->longitude);
+    }
+
+    /**
+     * Get coordinates as array
+     */
+    public function getCoordinates()
+    {
+        if (!$this->hasLocation()) {
+            return null;
+        }
+        
+        return [
+            'lat' => (float) $this->latitude,
+            'lng' => (float) $this->longitude
+        ];
+    }
+
+    /**
+     * Get Google Maps URL
+     */
+    public function getGoogleMapsUrl()
+    {
+        if ($this->map_url) {
+            return $this->map_url;
+        }
+        
+        if ($this->hasLocation()) {
+            return "https://www.google.com/maps?q={$this->latitude},{$this->longitude}";
+        }
+        
+        return null;
+    }
+
+    /**
+     * Calculate distance between two coordinates (Haversine formula)
+     */
+    public function distanceTo($lat, $lng)
+    {
+        if (!$this->hasLocation()) {
+            return null;
+        }
+        
+        $earthRadius = 6371; // Earth's radius in kilometers
+        
+        $latFrom = deg2rad($this->latitude);
+        $lonFrom = deg2rad($this->longitude);
+        $latTo = deg2rad($lat);
+        $lonTo = deg2rad($lng);
+        
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+        
+        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
+            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+        
+        return $angle * $earthRadius;
     }
 }
