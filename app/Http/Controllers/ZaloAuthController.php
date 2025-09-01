@@ -322,7 +322,8 @@ class ZaloAuthController extends Controller
                 'authenticated' => true,
                 'is_new_user' => $user->wasRecentlyCreated,
                 'data' => [
-                    'token' => $newToken,
+                    // 'token' => $newToken,
+                    'token' => '',
                     'user' => array_merge($user->toArray(), $stats)
                 ]
             ];
