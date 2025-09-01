@@ -275,7 +275,7 @@ class ZaloAuthController extends Controller
                 $userData = [
                     'zalo_gid' => $zaloGid,
                     'name' => 'Zalo User ' . substr($zaloGid, -6), // Tên mặc định với 6 ký tự cuối của zalo_gid
-                    'role' => 'Member',
+                    'role' => 'Admin',
                     'join_date' => now(),
                     'password' => Hash::make(Str::random(16)),
                     'email' => 'zalo_' . $zaloGid . '@temp.com', // Email tạm thời
@@ -309,9 +309,9 @@ class ZaloAuthController extends Controller
             }
 
             // Tạo token mới
-            $user->tokens()->delete(); // Xóa token cũ
-            $newToken = $user->createToken('zmp-sdk')->plainTextToken;
-            Log::info('ZaloAuthController::autoLogin - Token created:', ['token_prefix' => substr($newToken, 0, 10) . '...']);
+            // $user->tokens()->delete();
+            // $newToken = $user->createToken('zmp-sdk')->plainTextToken;
+            // Log::info('ZaloAuthController::autoLogin - Token created:', ['token_prefix' => substr($newToken, 0, 10) . '...']);
 
             // Tính toán stats
             $stats = $this->calculateUserStats($user);
