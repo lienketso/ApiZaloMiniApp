@@ -33,11 +33,13 @@ return [
 
     'zalo' => [
         'access_token' => env('ZALO_ACCESS_TOKEN'),
+        'oa_access_token' => env('ZALO_OA_ACCESS_TOKEN'),
         'invitation_template_id' => env('ZALO_INVITATION_TEMPLATE_ID', '12345'),
         'welcome_template_id' => env('ZALO_WELCOME_TEMPLATE_ID', '12346'),
         'business_id' => env('ZALO_BUSINESS_ID'),
         'app_id' => env('ZALO_APP_ID'),
         'app_secret' => env('ZALO_APP_SECRET'),
+        'oa_id' => env('ZALO_OA_ID'),
     ],
 
 ];

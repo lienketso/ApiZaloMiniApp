@@ -498,3 +498,14 @@ Route::post('/subscription/club/{clubId}/check-permission', [App\Http\Controller
 // Places API routes
 Route::get('/places/search', [App\Http\Controllers\PlacesController::class, 'search']);
 Route::get('/places/details', [App\Http\Controllers\PlacesController::class, 'details']);
+
+// Notification routes
+Route::post('/notifications/send-attendance', [App\Http\Controllers\NotificationController::class, 'sendAttendanceNotification']);
+Route::post('/notifications/send-attendance-members', [App\Http\Controllers\NotificationController::class, 'sendAttendanceNotificationToMembers']);
+Route::post('/notifications/test', [App\Http\Controllers\NotificationController::class, 'testNotification']);
+
+// Zalo OAuth v4 routes
+Route::post('/zalo/oauth/auth-url', [App\Http\Controllers\ZaloOAuthController::class, 'getAuthUrl']);
+Route::post('/zalo/oauth/access-token', [App\Http\Controllers\ZaloOAuthController::class, 'getAccessToken']);
+Route::post('/zalo/oauth/refresh-token', [App\Http\Controllers\ZaloOAuthController::class, 'refreshAccessToken']);
+Route::post('/zalo/oauth/user-info', [App\Http\Controllers\ZaloOAuthController::class, 'getUserInfo']);
