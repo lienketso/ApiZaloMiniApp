@@ -44,17 +44,6 @@ class NotificationController extends Controller
                 ], 404);
             }
 
-            // Lấy thông tin Zalo OA từ config
-            $zaloAppId = env('ZALO_APP_ID');
-            $zaloOaId = env('ZALO_OA_ID');
-
-            if (!$zaloAppId || !$zaloOaId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cấu hình Zalo OA chưa đầy đủ'
-                ], 500);
-            }
-
             // Lấy danh sách thành viên của club
             $members = User::whereHas('clubs', function($query) use ($clubId) {
                 $query->where('club_id', $clubId);
@@ -76,11 +65,7 @@ class NotificationController extends Controller
                 // Sử dụng Tin Truyền thông OA - gửi broadcast miễn phí
                 $message = "📢 Thông báo điểm danh từ câu lạc bộ {$club->name}!\n\nCó sự kiện điểm danh mới, hãy vào ứng dụng để tham gia!";
                 
-                $result = $this->zaloNotificationService->sendBroadcastMessage(
-                    $message,
-                    $zaloAppId,
-                    $zaloOaId
-                );
+                $result = $this->zaloNotificationService->sendBroadcastMessage($message);
 
                 if ($result['success']) {
                     return response()->json([
@@ -107,18 +92,13 @@ class NotificationController extends Controller
 
                 foreach ($members as $member) {
                     try {
-                        $result = $this->zaloNotificationService->sendCheckinNotification(
-                            $member->zalo_gid,
-                            $zaloAppId,
-                            $zaloOaId
-                        );
+                        $result = $this->zaloNotificationService->sendCheckinNotification($member->zalo_gid);
 
-                        if ($result && isset($result['error']) && $result['error'] == 0) {
+                        if ($result['success']) {
                             $successCount++;
                         } else {
                             $failCount++;
-                            $errors[] = "Gửi thông báo cho {$member->name} thất bại: " . 
-                                       ($result['message'] ?? 'Lỗi không xác định');
+                            $errors[] = "Gửi thông báo cho {$member->name} thất bại: " . $result['message'];
                         }
                     } catch (\Exception $e) {
                         $failCount++;
@@ -184,17 +164,6 @@ class NotificationController extends Controller
                 ], 400);
             }
 
-            // Lấy thông tin Zalo OA từ config
-            $zaloAppId = env('ZALO_APP_ID');
-            $zaloOaId = env('ZALO_OA_ID');
-
-            if (!$zaloAppId || !$zaloOaId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cấu hình Zalo OA chưa đầy đủ'
-                ], 500);
-            }
-
             $successCount = 0;
             $failCount = 0;
             $errors = [];
@@ -210,18 +179,13 @@ class NotificationController extends Controller
                     }
 
                     // Gửi thông báo
-                    $result = $this->zaloNotificationService->sendCheckinNotification(
-                        $member->zalo_gid,
-                        $zaloAppId,
-                        $zaloOaId
-                    );
+                    $result = $this->zaloNotificationService->sendCheckinNotification($member->zalo_gid);
 
-                    if ($result && isset($result['error']) && $result['error'] == 0) {
+                    if ($result['success']) {
                         $successCount++;
                     } else {
                         $failCount++;
-                        $errors[] = "Gửi thông báo cho {$member->name} thất bại: " . 
-                                   ($result['message'] ?? 'Lỗi không xác định');
+                        $errors[] = "Gửi thông báo cho {$member->name} thất bại: " . $result['message'];
                     }
                 } catch (\Exception $e) {
                     $failCount++;
@@ -259,26 +223,143 @@ class NotificationController extends Controller
             ]);
 
             $zaloGid = $validated['zalo_gid'];
-            $zaloAppId = env('ZALO_APP_ID');
-            $zaloOaId = env('ZALO_OA_ID');
 
-            if (!$zaloAppId || !$zaloOaId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cấu hình Zalo OA chưa đầy đủ'
-                ], 500);
-            }
+            $result = $this->zaloNotificationService->testMessage($zaloGid);
 
-            $result = $this->zaloNotificationService->sendCheckinNotification(
-                $zaloGid,
-                $zaloAppId,
-                $zaloOaId
-            );
+            return response()->json([
+                'success' => $result['success'],
+                'message' => $result['success'] ? 'Test gửi thông báo thành công' : 'Test gửi thông báo thất bại',
+                'data' => $result
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy URL xác thực OAuth v4
+     */
+    public function getAuthUrl(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'redirect_uri' => 'required|string|url',
+                'state' => 'nullable|string'
+            ]);
+
+            $redirectUri = $validated['redirect_uri'];
+            $state = $validated['state'] ?? null;
+
+            $authUrl = $this->zaloNotificationService->getAuthUrl($redirectUri, $state);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Test gửi thông báo thành công',
-                'data' => $result
+                'message' => 'Auth URL generated successfully',
+                'data' => [
+                    'auth_url' => $authUrl,
+                    'redirect_uri' => $redirectUri,
+                    'state' => $state
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy Access Token từ Authorization Code
+     */
+    public function getAccessToken(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'code' => 'required|string',
+                'redirect_uri' => 'required|string|url'
+            ]);
+
+            $code = $validated['code'];
+            $redirectUri = $validated['redirect_uri'];
+
+            $result = $this->zaloNotificationService->getAccessToken($code, $redirectUri);
+
+            return response()->json([
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'data' => $result['data'] ?? null
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Làm mới Access Token
+     */
+    public function refreshAccessToken(Request $request): JsonResponse
+    {
+        try {
+            $result = $this->zaloNotificationService->refreshAccessToken();
+
+            return response()->json([
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'data' => $result['data'] ?? null
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lấy thông tin người dùng
+     */
+    public function getUserInfo(Request $request): JsonResponse
+    {
+        try {
+            $result = $this->zaloNotificationService->getUserInfo();
+
+            return response()->json([
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'data' => $result['data'] ?? null
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Kiểm tra trạng thái token
+     */
+    public function checkTokenStatus(Request $request): JsonResponse
+    {
+        try {
+            $result = $this->zaloNotificationService->checkTokenStatus();
+
+            return response()->json([
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'data' => $result['token_info'] ?? null
             ]);
 
         } catch (\Exception $e) {

@@ -505,7 +505,8 @@ Route::post('/notifications/send-attendance-members', [App\Http\Controllers\Noti
 Route::post('/notifications/test', [App\Http\Controllers\NotificationController::class, 'testNotification']);
 
 // Zalo OAuth v4 routes
-Route::post('/zalo/oauth/auth-url', [App\Http\Controllers\ZaloOAuthController::class, 'getAuthUrl']);
-Route::post('/zalo/oauth/access-token', [App\Http\Controllers\ZaloOAuthController::class, 'getAccessToken']);
-Route::post('/zalo/oauth/refresh-token', [App\Http\Controllers\ZaloOAuthController::class, 'refreshAccessToken']);
-Route::post('/zalo/oauth/user-info', [App\Http\Controllers\ZaloOAuthController::class, 'getUserInfo']);
+Route::post('/zalo/oauth/auth-url', [App\Http\Controllers\NotificationController::class, 'getAuthUrl']);
+Route::post('/zalo/oauth/access-token', [App\Http\Controllers\NotificationController::class, 'getAccessToken']);
+Route::post('/zalo/oauth/refresh-token', [App\Http\Controllers\NotificationController::class, 'refreshAccessToken']);
+Route::post('/zalo/oauth/user-info', [App\Http\Controllers\NotificationController::class, 'getUserInfo']);
+Route::get('/zalo/oauth/token-status', [App\Http\Controllers\NotificationController::class, 'checkTokenStatus']);
