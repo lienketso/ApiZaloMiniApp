@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withProviders([
         Laravel\Sanctum\SanctumServiceProvider::class,
+        App\Providers\SchedulerServiceProvider::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         // Tắt CSRF cho API routes

@@ -60,46 +60,6 @@ Route::get('/zalo-test-message', function () {
     return $response->json();
 });
 
-//
-Route::get('/zalo-test-broadcast', function () {
-    $token = ZaloToken::first();
-    if (!$token) {
-        return response()->json(["error" => "Chưa có token, hãy chạy /zalo-refresh trước"]);
-    }
-
-    $accessToken = $token->access_token;
-    $userId      = "5170627724267093288"; // thay bằng user_id thật
-    $message     = "Xin chào 👋 đây là tin nhắn broadcast test từ Laravel 🚀";
-
-    $url = "https://openapi.zalo.me/v3.0/oa/message/broadcast/text";
-
-    $payload = [
-        "recipient" => [
-            "user_id" => [$userId]  // ✅ không có target
-        ],
-        "message" => [
-            "text" => $message
-        ]
-    ];
-
-    try {
-        $response = Http::withToken($accessToken)
-            ->withHeaders(["Content-Type" => "application/json"])
-            ->post($url, $payload);
-
-        return response()->json([
-            "status"   => $response->status(),
-            "response" => $response->json(),
-            "payload"  => $payload
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            "error"   => true,
-            "message" => $e->getMessage(),
-        ]);
-    }
-});
-
 Route::get('/zalo-refresh-token', function () {
     $appId     = config('services.zalo.app_id');       // từ config/services.php hoặc .env
     $appSecret = config('services.zalo.app_secret');
