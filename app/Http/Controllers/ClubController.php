@@ -649,7 +649,7 @@ class ClubController extends Controller
                     $query->where('user_id', $userId);
                 })
                 ->withCount(['users', 'events', 'matches'])
-                ->with(['creator:id,name,avatar']); // Chỉ load creator, không load users/events/matches
+                ->with(['creator:id,name,avatar', 'users:id,name,avatar', 'events:id,title,start_date', 'matches:id,title,match_date']); // Load đầy đủ relationships
 
             // Query tối ưu cho available clubs
             $availableClubsQuery = Club::where('is_setup', true)
@@ -657,7 +657,7 @@ class ClubController extends Controller
                     $query->where('user_id', $userId);
                 })
                 ->withCount(['users', 'events', 'matches'])
-                ->with(['creator:id,name,avatar']);
+                ->with(['creator:id,name,avatar', 'users:id,name,avatar', 'events:id,title,start_date', 'matches:id,title,match_date']); // Load đầy đủ relationships
 
             // Thêm search nếu có
             if ($search) {
@@ -674,6 +674,17 @@ class ClubController extends Controller
             $joinedClubs = $joinedClubsQuery
                 ->orderBy('created_at', 'desc')
                 ->get();
+
+            // Thêm membership status cho joined clubs
+            $joinedClubs = $joinedClubs->map(function($club) use ($userId) {
+                $userClub = $club->userClubs->where('user_id', $userId)->first();
+                if ($userClub) {
+                    $club->membership_status = $userClub->status ?? 'active';
+                    $club->role = $userClub->role;
+                    $club->joined_date = $userClub->joined_date;
+                }
+                return $club;
+            });
 
             return response()->json([
                 'success' => true,
@@ -724,14 +735,13 @@ class ClubController extends Controller
 
             // Single optimized query để lấy tất cả data cần thiết
             $user = User::with([
-                'clubs' => function($query) {
-                    $query->where('is_setup', true)
-                          ->withCount(['users', 'events', 'matches'])
-                          ->with(['creator:id,name,avatar']);
-                },
                 'userClubs' => function($query) {
-                    $query->with('club:id,name,sport,logo,address,phone,email,description,is_setup,created_at')
-                          ->where('is_active', true);
+                    $query->with(['club' => function($clubQuery) {
+                        $clubQuery->where('is_setup', true)
+                                  ->withCount(['users', 'events', 'matches'])
+                                  ->with(['creator:id,name,avatar', 'users:id,name,avatar', 'events:id,title,start_date', 'matches:id,title,match_date']);
+                    }])
+                    ->where('is_active', true);
                 }
             ])->find($userId);
 
@@ -758,10 +768,9 @@ class ClubController extends Controller
             $availableClubs = Club::where('is_setup', true)
                 ->whereNotIn('id', $joinedClubIds)
                 ->withCount(['users', 'events', 'matches'])
-                ->with(['creator:id,name,avatar'])
+                ->with(['creator:id,name,avatar', 'users:id,name,avatar', 'events:id,title,start_date', 'matches:id,title,match_date'])
                 ->orderBy('created_at', 'desc')
-                ->limit(20) // Giới hạn để tăng tốc
-                ->get();
+                ->get(); // Bỏ limit để lấy tất cả available clubs
 
             // Lấy pending invitations
             $pendingInvitations = \App\Models\Invitation::where('phone', $user->phone)
