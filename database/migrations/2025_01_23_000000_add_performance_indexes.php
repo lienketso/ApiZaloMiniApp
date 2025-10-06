@@ -12,33 +12,53 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('user_clubs', function (Blueprint $table) {
-            // Index cho status để tối ưu queries
-            $table->index(['user_id', 'status']);
-            $table->index(['club_id', 'status']);
-            $table->index(['status', 'created_at']);
+            // Index cho status để tối ưu queries (chỉ thêm nếu chưa tồn tại)
+            if (!Schema::hasIndex('user_clubs', 'user_clubs_user_id_status_index')) {
+                $table->index(['user_id', 'status']);
+            }
+            if (!Schema::hasIndex('user_clubs', 'user_clubs_club_id_status_index')) {
+                $table->index(['club_id', 'status']);
+            }
+            if (!Schema::hasIndex('user_clubs', 'user_clubs_status_created_at_index')) {
+                $table->index(['status', 'created_at']);
+            }
         });
 
         Schema::table('clubs', function (Blueprint $table) {
             // Index cho is_setup để tối ưu available clubs query
-            $table->index(['is_setup', 'created_at']);
-            $table->index('created_by');
+            if (!Schema::hasIndex('clubs', 'clubs_is_setup_created_at_index')) {
+                $table->index(['is_setup', 'created_at']);
+            }
+            if (!Schema::hasIndex('clubs', 'clubs_created_by_index')) {
+                $table->index('created_by');
+            }
         });
 
         Schema::table('matches', function (Blueprint $table) {
             // Composite index cho club queries
-            $table->index(['club_id', 'status', 'match_date']);
-            $table->index(['status', 'match_date']);
+            if (!Schema::hasIndex('matches', 'matches_club_id_status_match_date_index')) {
+                $table->index(['club_id', 'status', 'match_date']);
+            }
+            if (!Schema::hasIndex('matches', 'matches_status_match_date_index')) {
+                $table->index(['status', 'match_date']);
+            }
         });
 
         Schema::table('events', function (Blueprint $table) {
             // Index cho events queries
-            $table->index(['club_id', 'start_date']);
+            if (!Schema::hasIndex('events', 'events_club_id_start_date_index')) {
+                $table->index(['club_id', 'start_date']);
+            }
         });
 
         Schema::table('fund_transactions', function (Blueprint $table) {
             // Index cho fund queries
-            $table->index(['club_id', 'transaction_date']);
-            $table->index(['type', 'transaction_date']);
+            if (!Schema::hasIndex('fund_transactions', 'fund_transactions_club_id_transaction_date_index')) {
+                $table->index(['club_id', 'transaction_date']);
+            }
+            if (!Schema::hasIndex('fund_transactions', 'fund_transactions_type_transaction_date_index')) {
+                $table->index(['type', 'transaction_date']);
+            }
         });
     }
 
