@@ -309,6 +309,7 @@ Route::post('/club/setup', [ClubController::class, 'setup']);
 Route::post('/club/upload-logo', [ClubController::class, 'uploadLogo']);
 Route::get('/clubs/user-clubs', [ClubController::class, 'getUserClubs']);
 Route::get('/clubs/available', [ClubController::class, 'getAvailableClubs']);
+Route::get('/clubs/dashboard', [ClubController::class, 'getDashboardData']); // NEW: Optimized dashboard endpoint
 Route::post('/clubs/join', [ClubController::class, 'joinClub']);
 Route::post('/clubs/leave', [ClubController::class, 'leaveClub']);
 Route::get('/clubs/status', [ClubController::class, 'checkClubStatus']);

@@ -623,7 +623,7 @@ class ClubController extends Controller
     }
 
     /**
-     * Get all available clubs that user can join
+     * Get all available clubs that user can join - OPTIMIZED VERSION
      */
     public function getAvailableClubs(Request $request)
     {
@@ -638,20 +638,42 @@ class ClubController extends Controller
                 ], 400);
             }
 
-            // Lấy danh sách tất cả câu lạc bộ
-            $allClubs = Club::where('is_setup', true)
+            // Tối ưu: Chỉ load cần thiết, sử dụng pagination
+            $page = $request->query('page', 1);
+            $perPage = $request->query('per_page', 20);
+            $search = $request->query('search');
+
+            // Query tối ưu cho joined clubs
+            $joinedClubsQuery = Club::where('is_setup', true)
+                ->whereHas('userClubs', function($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                })
                 ->withCount(['users', 'events', 'matches'])
-                ->with(['creator:id,name,avatar', 'users:id,name,avatar', 'events:id,title,start_date', 'matches:id,title,match_date'])
-                ->get();
+                ->with(['creator:id,name,avatar']); // Chỉ load creator, không load users/events/matches
 
-            // Lấy danh sách câu lạc bộ user đã tham gia (bao gồm tất cả status)
-            $userMemberships = UserClub::where('user_id', $userId)
-                ->get();
+            // Query tối ưu cho available clubs
+            $availableClubsQuery = Club::where('is_setup', true)
+                ->whereDoesntHave('userClubs', function($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                })
+                ->withCount(['users', 'events', 'matches'])
+                ->with(['creator:id,name,avatar']);
 
-            // Phân loại câu lạc bộ theo membership status
-            $joinedClubIds = $userMemberships->pluck('club_id')->toArray();
-            $joinedClubs = $allClubs->whereIn('id', $joinedClubIds)->values(); // Thêm values() để chuyển thành array
-            $availableClubs = $allClubs->whereNotIn('id', $joinedClubIds)->values(); // Thêm values() để chuyển thành array
+            // Thêm search nếu có
+            if ($search) {
+                $joinedClubsQuery->where('name', 'like', "%{$search}%");
+                $availableClubsQuery->where('name', 'like', "%{$search}%");
+            }
+
+            // Pagination cho available clubs
+            $availableClubs = $availableClubsQuery
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage, ['*'], 'available_page', $page);
+
+            // Không pagination cho joined clubs (thường ít)
+            $joinedClubs = $joinedClubsQuery
+                ->orderBy('created_at', 'desc')
+                ->get();
 
             return response()->json([
                 'success' => true,
@@ -659,7 +681,13 @@ class ClubController extends Controller
                     'joined_clubs' => $joinedClubs,
                     'available_clubs' => $availableClubs,
                     'total_joined' => $joinedClubs->count(),
-                    'total_available' => $availableClubs->count()
+                    'total_available' => $availableClubs->total(),
+                    'pagination' => [
+                        'current_page' => $availableClubs->currentPage(),
+                        'last_page' => $availableClubs->lastPage(),
+                        'per_page' => $availableClubs->perPage(),
+                        'total' => $availableClubs->total()
+                    ]
                 ]
             ]);
             
@@ -674,6 +702,106 @@ class ClubController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error retrieving available clubs',
+                'error' => $e->getMessage() ?: 'Unknown error occurred'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get optimized dashboard data - single API call for all club data
+     */
+    public function getDashboardData(Request $request)
+    {
+        try {
+            $userId = $request->input('user_id') ?? $request->query('user_id') ?? $this->getCurrentUserId();
+            
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User ID is required'
+                ], 400);
+            }
+
+            // Single optimized query để lấy tất cả data cần thiết
+            $user = User::with([
+                'clubs' => function($query) {
+                    $query->where('is_setup', true)
+                          ->withCount(['users', 'events', 'matches'])
+                          ->with(['creator:id,name,avatar']);
+                },
+                'userClubs' => function($query) {
+                    $query->with('club:id,name,sport,logo,address,phone,email,description,is_setup,created_at')
+                          ->where('is_active', true);
+                }
+            ])->find($userId);
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            // Phân loại clubs
+            $joinedClubs = $user->userClubs->map(function($userClub) {
+                $club = $userClub->club;
+                if ($club) {
+                    $club->membership_status = $userClub->status ?? 'active';
+                    $club->role = $userClub->role;
+                    $club->joined_date = $userClub->joined_date;
+                }
+                return $club;
+            })->filter()->values();
+
+            // Lấy available clubs (không có trong joined)
+            $joinedClubIds = $joinedClubs->pluck('id')->toArray();
+            $availableClubs = Club::where('is_setup', true)
+                ->whereNotIn('id', $joinedClubIds)
+                ->withCount(['users', 'events', 'matches'])
+                ->with(['creator:id,name,avatar'])
+                ->orderBy('created_at', 'desc')
+                ->limit(20) // Giới hạn để tăng tốc
+                ->get();
+
+            // Lấy pending invitations
+            $pendingInvitations = \App\Models\Invitation::where('phone', $user->phone)
+                ->where('status', 'pending')
+                ->with('club:id,name,sport,logo')
+                ->get();
+
+            // Lấy membership statuses
+            $membershipStatuses = $user->userClubs->pluck('status', 'club_id')->toArray();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'phone' => $user->phone,
+                        'email' => $user->email,
+                        'avatar' => $user->avatar,
+                        'role' => $user->role
+                    ],
+                    'joined_clubs' => $joinedClubs,
+                    'available_clubs' => $availableClubs,
+                    'pending_invitations' => $pendingInvitations,
+                    'membership_statuses' => $membershipStatuses,
+                    'stats' => [
+                        'total_joined' => $joinedClubs->count(),
+                        'total_available' => $availableClubs->count(),
+                        'total_pending_invitations' => $pendingInvitations->count()
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('ClubController::getDashboardData - Error:', [
+                'error' => $e->getMessage() ?: 'Unknown error',
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving dashboard data',
                 'error' => $e->getMessage() ?: 'Unknown error occurred'
             ], 500);
         }

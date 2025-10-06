@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Frontend Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .button.secondary {
+            background: #6c757d;
+        }
+        .button.secondary:hover {
+            background: #545b62;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .info {
+            border-color: #17a2b8;
+            background-color: #d1ecf1;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Frontend Notification API</h1>
+    
+    <div class="container">
+        <h2>📋 Test Configuration</h2>
+        <p><strong>API Base URL:</strong> <span id="apiBaseUrl">Loading...</span></p>
+        <p><strong>Club ID:</strong> <span id="clubId">Loading...</span></p>
+        <p><strong>Zalo GID:</strong> <span id="zaloGid">Loading...</span></p>
+    </div>
+
+    <div class="container">
+        <h2>🔔 Notification Tests</h2>
+        
+        <h3>1. Test Auto Method</h3>
+        <button class="button" onclick="testNotification('auto')">Gửi thông báo (Tự động)</button>
+        
+        <h3>2. Test Personal Method</h3>
+        <button class="button" onclick="testNotification('personal')">Gửi cá nhân</button>
+        
+        <h3>3. Test Broadcast Method</h3>
+        <button class="button" onclick="testNotification('broadcast')">Gửi broadcast</button>
+        
+        <h3>4. Test All Methods</h3>
+        <button class="button secondary" onclick="testAllMethods()">Test tất cả methods</button>
+        
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>📊 API Status</h2>
+        <button class="button secondary" onclick="checkApiStatus()">Kiểm tra API Status</button>
+        <div id="apiStatus" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost/club/public/api';
+        let clubId = 1; // Default club ID
+        let zaloGid = '5170627724267093288'; // Test Zalo GID
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('apiBaseUrl').textContent = API_BASE_URL;
+            document.getElementById('clubId').textContent = clubId;
+            document.getElementById('zaloGid').textContent = zaloGid;
+        });
+
+        // Show result
+        function showResult(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.className = `result ${type}`;
+            resultDiv.style.display = 'block';
+        }
+
+        // Show API status
+        function showApiStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('apiStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = `result ${type}`;
+            statusDiv.style.display = 'block';
+        }
+
+        // Test notification
+        async function testNotification(method) {
+            showResult(`🔄 Đang test gửi thông báo (${method})...`, 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/notifications/send-attendance`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        club_id: clubId,
+                        zalo_gid: zaloGid,
+                        method: method
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    let message = `✅ Thành công!\n`;
+                    message += `Method: ${data.data?.method || method}\n`;
+                    message += `Club: ${data.data?.club_name || 'Unknown'}\n`;
+                    message += `Total members: ${data.data?.total_members || 0}\n`;
+                    
+                    if (data.data?.success_count !== undefined) {
+                        message += `Success count: ${data.data.success_count}\n`;
+                        message += `Fail count: ${data.data.fail_count || 0}\n`;
+                    }
+                    
+                    message += `\nResponse: ${JSON.stringify(data, null, 2)}`;
+                    showResult(message, 'success');
+                } else {
+                    let message = `❌ Thất bại!\n`;
+                    message += `Status: ${response.status}\n`;
+                    message += `Message: ${data.message || 'Unknown error'}\n`;
+                    message += `\nResponse: ${JSON.stringify(data, null, 2)}`;
+                    showResult(message, 'error');
+                }
+            } catch (error) {
+                let message = `❌ Lỗi kết nối!\n`;
+                message += `Error: ${error.message}\n`;
+                message += `Stack: ${error.stack}`;
+                showResult(message, 'error');
+            }
+        }
+
+        // Test all methods
+        async function testAllMethods() {
+            showResult('🔄 Đang test tất cả methods...', 'info');
+            
+            const methods = ['auto', 'personal', 'broadcast'];
+            let results = [];
+            
+            for (const method of methods) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/notifications/send-attendance`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            club_id: clubId,
+                            zalo_gid: zaloGid,
+                            method: method
+                        })
+                    });
+
+                    const data = await response.json();
+                    results.push({
+                        method,
+                        success: response.ok && data.success,
+                        status: response.status,
+                        message: data.message,
+                        data: data.data
+                    });
+                } catch (error) {
+                    results.push({
+                        method,
+                        success: false,
+                        error: error.message
+                    });
+                }
+            }
+            
+            let message = '📊 Kết quả test tất cả methods:\n\n';
+            results.forEach(result => {
+                message += `${result.method.toUpperCase()}: ${result.success ? '✅' : '❌'}\n`;
+                if (result.error) {
+                    message += `  Error: ${result.error}\n`;
+                } else {
+                    message += `  Status: ${result.status}\n`;
+                    message += `  Message: ${result.message}\n`;
+                }
+                message += '\n';
+            });
+            
+            showResult(message, results.every(r => r.success) ? 'success' : 'error');
+        }
+
+        // Check API status
+        async function checkApiStatus() {
+            showApiStatus('🔄 Đang kiểm tra API status...', 'info');
+            
+            try {
+                // Test basic API connectivity
+                const response = await fetch(`${API_BASE_URL}/notifications/send-attendance`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        club_id: clubId,
+                        zalo_gid: zaloGid,
+                        method: 'auto'
+                    })
+                });
+
+                const data = await response.json();
+                
+                let message = `📊 API Status Report:\n\n`;
+                message += `✅ API Endpoint: Accessible\n`;
+                message += `Status Code: ${response.status}\n`;
+                message += `Response Time: ${new Date().toLocaleTimeString()}\n\n`;
+                
+                if (response.ok) {
+                    message += `✅ API Response: Valid\n`;
+                    message += `Success: ${data.success}\n`;
+                    message += `Message: ${data.message}\n`;
+                } else {
+                    message += `❌ API Response: Error\n`;
+                    message += `Error: ${data.message || 'Unknown error'}\n`;
+                }
+                
+                message += `\nFull Response:\n${JSON.stringify(data, null, 2)}`;
+                showApiStatus(message, response.ok ? 'success' : 'error');
+                
+            } catch (error) {
+                let message = `❌ API Status: Unreachable\n\n`;
+                message += `Error: ${error.message}\n`;
+                message += `Type: ${error.name}\n`;
+                message += `Stack: ${error.stack}`;
+                showApiStatus(message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
+

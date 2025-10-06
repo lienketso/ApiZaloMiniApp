@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Event-Specific Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .event-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: white;
+        }
+        .event-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+        .event-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+        .status-upcoming {
+            background-color: #dbeafe;
+            color: #2563eb;
+        }
+        .status-ongoing {
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+        .status-completed {
+            background-color: #f3f4f6;
+            color: #6b7280;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 4px;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .button.secondary {
+            background: #6c757d;
+        }
+        .button.secondary:hover {
+            background: #545b62;
+        }
+        .button.small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .info {
+            border-color: #17a2b8;
+            background-color: #d1ecf1;
+        }
+        .notification-buttons {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .button-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .button-row .button {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Test Event-Specific Notification</h1>
+    
+    <div class="container">
+        <h2>📋 Test Configuration</h2>
+        <p><strong>API Base URL:</strong> <span id="apiBaseUrl">Loading...</span></p>
+        <p><strong>Club ID:</strong> <span id="clubId">Loading...</span></p>
+        <p><strong>Zalo GID:</strong> <span id="zaloGid">Loading...</span></p>
+    </div>
+
+    <div class="container">
+        <h2>📅 Sample Events</h2>
+        
+        <!-- Event 1: Upcoming -->
+        <div class="event-card">
+            <div class="event-title">🏃‍♂️ Chạy bộ sáng thứ 7</div>
+            <div class="event-status status-upcoming">Sắp diễn ra</div>
+            <p><strong>Thời gian:</strong> 2025-09-14 • 06:00</p>
+            <p><strong>Địa điểm:</strong> Công viên Lê Văn Tám</p>
+            <p><strong>Mô tả:</strong> Chạy bộ buổi sáng cùng câu lạc bộ</p>
+            
+            <div class="notification-buttons">
+                <button class="button secondary small" onclick="testEventNotification('event1', 'auto')">
+                    Gửi thông báo (Tự động)
+                </button>
+                <div class="button-row">
+                    <button class="button secondary small" onclick="testEventNotification('event1', 'personal')">
+                        Gửi cá nhân
+                    </button>
+                    <button class="button secondary small" onclick="testEventNotification('event1', 'broadcast')">
+                        Gửi broadcast
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event 2: Ongoing -->
+        <div class="event-card">
+            <div class="event-title">⚽ Đá bóng chiều nay</div>
+            <div class="event-status status-ongoing">Đang diễn ra</div>
+            <p><strong>Thời gian:</strong> 2025-09-13 • 17:00</p>
+            <p><strong>Địa điểm:</strong> Sân bóng đá quận 1</p>
+            <p><strong>Mô tả:</strong> Trận đấu giao hữu với đội bạn</p>
+            
+            <div class="notification-buttons">
+                <button class="button secondary small" onclick="testEventNotification('event2', 'auto')">
+                    Gửi thông báo (Tự động)
+                </button>
+                <div class="button-row">
+                    <button class="button secondary small" onclick="testEventNotification('event2', 'personal')">
+                        Gửi cá nhân
+                    </button>
+                    <button class="button secondary small" onclick="testEventNotification('event2', 'broadcast')">
+                        Gửi broadcast
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event 3: Completed -->
+        <div class="event-card">
+            <div class="event-title">🎉 Tiệc sinh nhật hôm qua</div>
+            <div class="event-status status-completed">Đã hoàn thành</div>
+            <p><strong>Thời gian:</strong> 2025-09-12 • 19:00</p>
+            <p><strong>Địa điểm:</strong> Nhà hàng ABC</p>
+            <p><strong>Mô tả:</strong> Tiệc sinh nhật thành viên</p>
+            
+            <div class="notification-buttons">
+                <p style="color: #6b7280; font-size: 12px; margin: 0;">
+                    ⚠️ Sự kiện đã hoàn thành - Không thể gửi thông báo
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Test All Events</h2>
+        <button class="button" onclick="testAllEvents()">Test tất cả sự kiện</button>
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost/club/public/api';
+        let clubId = 1; // Default club ID
+        let zaloGid = '5170627724267093288'; // Test Zalo GID
+
+        // Sample events data
+        const sampleEvents = {
+            event1: {
+                id: 1,
+                title: '🏃‍♂️ Chạy bộ sáng thứ 7',
+                status: 'upcoming',
+                date: '2025-09-14',
+                time: '06:00',
+                location: 'Công viên Lê Văn Tám',
+                description: 'Chạy bộ buổi sáng cùng câu lạc bộ'
+            },
+            event2: {
+                id: 2,
+                title: '⚽ Đá bóng chiều nay',
+                status: 'ongoing',
+                date: '2025-09-13',
+                time: '17:00',
+                location: 'Sân bóng đá quận 1',
+                description: 'Trận đấu giao hữu với đội bạn'
+            },
+            event3: {
+                id: 3,
+                title: '🎉 Tiệc sinh nhật hôm qua',
+                status: 'completed',
+                date: '2025-09-12',
+                time: '19:00',
+                location: 'Nhà hàng ABC',
+                description: 'Tiệc sinh nhật thành viên'
+            }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('apiBaseUrl').textContent = API_BASE_URL;
+            document.getElementById('clubId').textContent = clubId;
+            document.getElementById('zaloGid').textContent = zaloGid;
+        });
+
+        // Show result
+        function showResult(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.className = `result ${type}`;
+            resultDiv.style.display = 'block';
+        }
+
+        // Test notification for specific event
+        async function testEventNotification(eventKey, method) {
+            const event = sampleEvents[eventKey];
+            
+            // Check if event is completed
+            if (event.status === 'completed') {
+                showResult(`❌ Không thể gửi thông báo cho sự kiện đã hoàn thành: "${event.title}"`, 'error');
+                return;
+            }
+            
+            showResult(`🔄 Đang test gửi thông báo cho sự kiện "${event.title}" (${method})...`, 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/notifications/send-attendance`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        club_id: clubId,
+                        zalo_gid: zaloGid,
+                        method: method
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    let message = `✅ Thành công cho sự kiện "${event.title}"!\n`;
+                    message += `Event: ${event.title}\n`;
+                    message += `Status: ${event.status}\n`;
+                    message += `Method: ${data.data?.method || method}\n`;
+                    message += `Club: ${data.data?.club_name || 'Unknown'}\n`;
+                    message += `Total members: ${data.data?.total_members || 0}\n`;
+                    
+                    if (data.data?.success_count !== undefined) {
+                        message += `Success count: ${data.data.success_count}\n`;
+                        message += `Fail count: ${data.data.fail_count || 0}\n`;
+                    }
+                    
+                    message += `\nResponse: ${JSON.stringify(data, null, 2)}`;
+                    showResult(message, 'success');
+                } else {
+                    let message = `❌ Thất bại cho sự kiện "${event.title}"!\n`;
+                    message += `Status: ${response.status}\n`;
+                    message += `Message: ${data.message || 'Unknown error'}\n`;
+                    message += `\nResponse: ${JSON.stringify(data, null, 2)}`;
+                    showResult(message, 'error');
+                }
+            } catch (error) {
+                let message = `❌ Lỗi kết nối cho sự kiện "${event.title}"!\n`;
+                message += `Error: ${error.message}\n`;
+                message += `Stack: ${error.stack}`;
+                showResult(message, 'error');
+            }
+        }
+
+        // Test all events
+        async function testAllEvents() {
+            showResult('🔄 Đang test tất cả sự kiện...', 'info');
+            
+            const events = Object.values(sampleEvents);
+            const methods = ['auto', 'personal', 'broadcast'];
+            let results = [];
+            
+            for (const event of events) {
+                // Skip completed events
+                if (event.status === 'completed') {
+                    results.push({
+                        event: event.title,
+                        status: 'skipped',
+                        reason: 'Event completed'
+                    });
+                    continue;
+                }
+                
+                for (const method of methods) {
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/notifications/send-attendance`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                club_id: clubId,
+                                zalo_gid: zaloGid,
+                                method: method
+                            })
+                        });
+
+                        const data = await response.json();
+                        results.push({
+                            event: event.title,
+                            method,
+                            success: response.ok && data.success,
+                            status: response.status,
+                            message: data.message
+                        });
+                    } catch (error) {
+                        results.push({
+                            event: event.title,
+                            method,
+                            success: false,
+                            error: error.message
+                        });
+                    }
+                }
+            }
+            
+            let message = '📊 Kết quả test tất cả sự kiện:\n\n';
+            results.forEach(result => {
+                if (result.status === 'skipped') {
+                    message += `${result.event}: ⏭️ SKIPPED (${result.reason})\n`;
+                } else {
+                    message += `${result.event} - ${result.method.toUpperCase()}: ${result.success ? '✅' : '❌'}\n`;
+                    if (result.error) {
+                        message += `  Error: ${result.error}\n`;
+                    } else {
+                        message += `  Status: ${result.status}\n`;
+                        message += `  Message: ${result.message}\n`;
+                    }
+                }
+                message += '\n';
+            });
+            
+            showResult(message, results.every(r => r.success || r.status === 'skipped') ? 'success' : 'error');
+        }
+    </script>
+</body>
+</html>
+
