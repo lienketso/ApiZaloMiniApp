@@ -665,10 +665,10 @@ class ClubController extends Controller
                 $availableClubsQuery->where('name', 'like', "%{$search}%");
             }
 
-            // Pagination cho available clubs
+            // Không pagination cho cả available clubs và joined clubs - trả về array trực tiếp
             $availableClubs = $availableClubsQuery
                 ->orderBy('created_at', 'desc')
-                ->paginate($perPage, ['*'], 'available_page', $page);
+                ->get(); // Sử dụng get() thay vì paginate()
 
             // Không pagination cho joined clubs (thường ít)
             $joinedClubs = $joinedClubsQuery
@@ -690,15 +690,9 @@ class ClubController extends Controller
                 'success' => true,
                 'data' => [
                     'joined_clubs' => $joinedClubs,
-                    'available_clubs' => $availableClubs,
+                    'available_clubs' => $availableClubs, // Giờ đây là array
                     'total_joined' => $joinedClubs->count(),
-                    'total_available' => $availableClubs->total(),
-                    'pagination' => [
-                        'current_page' => $availableClubs->currentPage(),
-                        'last_page' => $availableClubs->lastPage(),
-                        'per_page' => $availableClubs->perPage(),
-                        'total' => $availableClubs->total()
-                    ]
+                    'total_available' => $availableClubs->count()
                 ]
             ]);
             
