@@ -497,8 +497,8 @@ Route::post('/subscription/club/{clubId}/cancel', [App\Http\Controllers\Subscrip
 Route::post('/subscription/club/{clubId}/check-permission', [App\Http\Controllers\SubscriptionController::class, 'checkActionPermission']);
 
 // Places API routes
-Route::get('/places/search', [App\Http\Controllers\PlacesController::class, 'search']);
-Route::get('/places/details', [App\Http\Controllers\PlacesController::class, 'details']);
+// Route::get('/places/search', [App\Http\Controllers\PlacesController::class, 'search']);
+// Route::get('/places/details', [App\Http\Controllers\PlacesController::class, 'details']);
 
 // Notification routes
 Route::post('/notifications/send-attendance', [App\Http\Controllers\NotificationController::class, 'sendAttendanceNotification']);
