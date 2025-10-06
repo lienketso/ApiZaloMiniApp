@@ -369,4 +369,31 @@ class NotificationController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Kiểm tra user đã follow OA chưa
+     */
+    public function checkUserFollowOA(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'zalo_gid' => 'required|string'
+            ]);
+
+            $zaloGid = $request->input('zalo_gid');
+            $result = $this->zaloNotificationService->checkUserFollowOA($zaloGid);
+
+            return response()->json([
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'data' => $result['data'] ?? null
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

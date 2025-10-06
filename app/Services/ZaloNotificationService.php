@@ -659,4 +659,89 @@ class ZaloNotificationService
             ]
         ];
     }
+
+    /**
+     * Kiểm tra user đã follow OA chưa
+     * 
+     * @param string $zaloGid Zalo GID của user
+     * @return array
+     */
+    public function checkUserFollowOA(string $zaloGid): array
+    {
+        try {
+            // Đảm bảo token còn hiệu lực trước khi kiểm tra
+            if (!$this->ensureValidToken()) {
+                Log::error('Zalo OA access token not available or expired for follow check');
+                return [
+                    'success' => false,
+                    'message' => 'Zalo OA access token not available or expired',
+                    'error' => 1
+                ];
+            }
+
+            $url = "https://openapi.zalo.me/v2.0/oa/followers/info";
+            
+            $payload = [
+                "user_id" => $zaloGid
+            ];
+
+            Log::info('Checking if user follows OA:', [
+                'zalo_gid' => $zaloGid,
+                'oa_id' => $this->oaId
+            ]);
+
+            $response = Http::timeout(30)
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'access_token' => $this->accessToken
+                ])
+                ->post($url, $payload);
+
+            if ($response->successful()) {
+                $result = $response->json();
+                Log::info('Zalo OA follow check result:', $result);
+                
+                // Kiểm tra kết quả từ Zalo API
+                $isFollowing = isset($result['data']) && isset($result['data']['is_follow']) && $result['data']['is_follow'] === true;
+                
+                return [
+                    'success' => true,
+                    'message' => $isFollowing ? 'User đã follow OA' : 'User chưa follow OA',
+                    'data' => [
+                        'is_following' => $isFollowing,
+                        'zalo_gid' => $zaloGid,
+                        'oa_id' => $this->oaId
+                    ],
+                    'error' => 0
+                ];
+            } else {
+                $errorResponse = $response->json();
+                Log::error('Zalo OA follow check failed:', [
+                    'status' => $response->status(),
+                    'response' => $errorResponse,
+                    'raw_response' => $response->body()
+                ]);
+                
+                return [
+                    'success' => false,
+                    'message' => 'Failed to check follow status: ' . ($errorResponse['message'] ?? 'Unknown error'),
+                    'error' => $errorResponse['error'] ?? 1,
+                    'status_code' => $response->status()
+                ];
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error checking Zalo OA follow status:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'zalo_gid' => $zaloGid
+            ]);
+            
+            return [
+                'success' => false,
+                'message' => 'Error checking follow status: ' . $e->getMessage(),
+                'error' => 1
+            ];
+        }
+    }
 }

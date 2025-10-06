@@ -511,3 +511,4 @@ Route::post('/zalo/oauth/access-token', [App\Http\Controllers\NotificationContro
 Route::post('/zalo/oauth/refresh-token', [App\Http\Controllers\NotificationController::class, 'refreshAccessToken']);
 Route::post('/zalo/oauth/user-info', [App\Http\Controllers\NotificationController::class, 'getUserInfo']);
 Route::get('/zalo/oauth/token-status', [App\Http\Controllers\NotificationController::class, 'checkTokenStatus']);
+Route::post('/zalo/oauth/check-follow', [App\Http\Controllers\NotificationController::class, 'checkUserFollowOA']);
