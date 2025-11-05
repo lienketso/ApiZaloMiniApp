@@ -218,8 +218,11 @@ class ClubController extends Controller
                 ], 401);
             }
 
-            // Kiểm tra xem user có club nào không từ bảng user_clubs
-            $userClubs = UserClub::where('user_id', $userId)->where('is_active', true)->count();
+            // Kiểm tra xem user có club nào không từ bảng user_clubs (chỉ tính các club có status active)
+            $userClubs = UserClub::where('user_id', $userId)
+                ->where('status', 'active')
+                ->where('is_active', true)
+                ->count();
             
             if ($userClubs === 0) {
                 return response()->json([
@@ -230,13 +233,29 @@ class ClubController extends Controller
                 ], 404);
             }
 
-            // Kiểm tra xem user có quyền truy cập club này không
+            // Kiểm tra xem user có quyền truy cập club này không (phải có status = 'active' và được admin duyệt)
             $userClub = UserClub::where('user_id', $userId)
                 ->where('club_id', $id)
+                ->where('status', 'active') // Phải có status active (đã được admin duyệt)
                 ->where('is_active', true)
                 ->first();
 
             if (!$userClub) {
+                // Kiểm tra xem user có membership với status pending không
+                $pendingMembership = UserClub::where('user_id', $userId)
+                    ->where('club_id', $id)
+                    ->where('status', 'pending')
+                    ->first();
+                
+                if ($pendingMembership) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Yêu cầu tham gia của bạn đang chờ admin duyệt. Vui lòng chờ xác nhận từ admin.',
+                        'code' => 'PENDING_APPROVAL',
+                        'status' => 'pending'
+                    ], 403);
+                }
+                
                 return response()->json([
                     'success' => false,
                     'message' => 'Bạn không có quyền truy cập câu lạc bộ này',
@@ -535,37 +554,48 @@ class ClubController extends Controller
                 ], 400);
             }
 
-            // Kiểm tra từ bảng user_clubs
+            // Kiểm tra từ bảng user_clubs - trả về TẤT CẢ clubs (bao gồm pending) để frontend hiển thị status
             $userClubs = UserClub::where('user_id', $userId)
-                ->where('is_active', true)
                 ->with(['club:id,name,sport,logo,address,is_setup'])
                 ->get();
 
+            // Tách ra active clubs và pending clubs
+            $activeClubs = $userClubs->where('status', 'active')->where('is_active', true);
+            
             $response = [
                 'success' => true,
                 'has_own_club' => false,
                 'is_member_of_clubs' => false,
-                'total_clubs' => $userClubs->count(),
-                'clubs' => $userClubs,
+                'total_clubs' => $userClubs->count(), // Tổng số clubs (bao gồm pending)
+                'active_clubs_count' => $activeClubs->count(), // Số clubs đã được duyệt
+                'clubs' => $userClubs, // Trả về tất cả clubs để frontend hiển thị status
                 'action_required' => null,
                 'message' => ''
             ];
 
-            if ($userClubs->count() > 0) {
+            // Chỉ tính active clubs khi xác định quyền
+            if ($activeClubs->count() > 0) {
                 $response['is_member_of_clubs'] = true;
                 
-                // Kiểm tra xem có phải là admin của club nào không
-                $adminClubs = $userClubs->where('role', 'admin');
+                // Kiểm tra xem có phải là admin của club nào không (chỉ tính active clubs)
+                $adminClubs = $activeClubs->where('role', 'admin');
                 if ($adminClubs->count() > 0) {
                     $response['has_own_club'] = true;
                     $response['own_club'] = $adminClubs->first()->club;
                 }
             }
 
-            // Xác định action cần thiết
-            if ($userClubs->count() === 0) {
-                $response['action_required'] = 'create_or_join_club';
-                $response['message'] = 'Bạn chưa tham gia câu lạc bộ nào. Vui lòng tạo hoặc tham gia câu lạc bộ.';
+            // Xác định action cần thiết (chỉ tính active clubs)
+            if ($activeClubs->count() === 0) {
+                // Kiểm tra xem có pending clubs không
+                $pendingClubs = $userClubs->where('status', 'pending');
+                if ($pendingClubs->count() > 0) {
+                    $response['action_required'] = 'wait_for_approval';
+                    $response['message'] = 'Bạn có yêu cầu tham gia đang chờ admin duyệt. Vui lòng chờ xác nhận.';
+                } else {
+                    $response['action_required'] = 'create_or_join_club';
+                    $response['message'] = 'Bạn chưa tham gia câu lạc bộ nào. Vui lòng tạo hoặc tham gia câu lạc bộ.';
+                }
             } elseif (!$response['has_own_club']) {
                 $response['action_required'] = 'create_own_club';
                 $response['message'] = 'Bạn đã tham gia câu lạc bộ nhưng chưa có câu lạc bộ riêng.';

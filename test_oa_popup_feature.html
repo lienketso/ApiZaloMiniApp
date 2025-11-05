@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test OA Follow Popup Feature</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .loading { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test OA Follow Popup Feature</h1>
+        
+        <div class="test-section">
+            <h3>📋 Mô tả tính năng</h3>
+            <p>Khi user chuyển sang trạng thái "đã cấp" (đã follow OA), hệ thống sẽ hiển thị popup thông báo thành công.</p>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 Test Cases</h3>
+            
+            <h4>1. Test API Check Follow Status</h4>
+            <button class="test-button" onclick="testCheckFollowStatus()">Kiểm tra trạng thái follow</button>
+            <div id="api-status" class="status" style="display: none;"></div>
+
+            <h4>2. Test Popup Simulation</h4>
+            <button class="test-button" onclick="simulateSuccessPopup()">Mô phỏng popup thành công</button>
+            <button class="test-button" onclick="simulateInfoPopup()">Mô phỏng popup thông báo</button>
+            <button class="test-button" onclick="simulateErrorPopup()">Mô phỏng popup lỗi</button>
+
+            <h4>3. Test Real API Call</h4>
+            <button class="test-button" onclick="testRealAPICall()">Gọi API thực tế</button>
+            <div id="real-api-status" class="status" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Kết quả test</h3>
+            <div id="test-results"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost/club/public/api';
+        const TEST_ZALO_GID = '5170627724267093288';
+
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `status ${type}`;
+            element.textContent = message;
+        }
+
+        function addTestResult(message, type = 'info') {
+            const results = document.getElementById('test-results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+        }
+
+        async function testCheckFollowStatus() {
+            showStatus('api-status', 'Đang kiểm tra...', 'loading');
+            
+            try {
+                const response = await fetch(`${API_BASE}/zalo/oauth/check-follow`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        zalo_gid: TEST_ZALO_GID
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const status = data.data.is_following ? 'Đã follow' : 'Chưa follow';
+                    showStatus('api-status', `✅ API hoạt động bình thường - Trạng thái: ${status}`, 'success');
+                    addTestResult(`API check follow status: ${status}`, 'success');
+                } else {
+                    showStatus('api-status', `❌ API lỗi: ${data.message}`, 'error');
+                    addTestResult(`API check follow status failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showStatus('api-status', `❌ Lỗi kết nối: ${error.message}`, 'error');
+                addTestResult(`API check follow status error: ${error.message}`, 'error');
+            }
+        }
+
+        function simulateSuccessPopup() {
+            addTestResult('Mô phỏng popup thành công: "🎉 Chúc mừng! Bạn đã tham gia Official Account thành công!"', 'success');
+            alert('🎉 Chúc mừng! Bạn đã tham gia Official Account thành công!');
+        }
+
+        function simulateInfoPopup() {
+            addTestResult('Mô phỏng popup thông báo: "⚠️ Bạn chưa tham gia Official Account. Vui lòng tham gia để nhận thông báo từ câu lạc bộ."', 'info');
+            alert('⚠️ Bạn chưa tham gia Official Account. Vui lòng tham gia để nhận thông báo từ câu lạc bộ.');
+        }
+
+        function simulateErrorPopup() {
+            addTestResult('Mô phỏng popup lỗi: "❌ Có lỗi xảy ra khi kiểm tra trạng thái follow OA"', 'error');
+            alert('❌ Có lỗi xảy ra khi kiểm tra trạng thái follow OA');
+        }
+
+        async function testRealAPICall() {
+            showStatus('real-api-status', 'Đang gọi API thực tế...', 'loading');
+            
+            try {
+                const response = await fetch(`${API_BASE}/zalo/oauth/check-follow`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        zalo_gid: TEST_ZALO_GID
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const status = data.data.is_following ? 'Đã follow' : 'Chưa follow';
+                    showStatus('real-api-status', `✅ API thực tế hoạt động - Trạng thái: ${status}`, 'success');
+                    addTestResult(`Real API call successful: ${status}`, 'success');
+                    
+                    // Mô phỏng popup dựa trên kết quả
+                    if (data.data.is_following) {
+                        setTimeout(() => {
+                            alert('🎉 Chúc mừng! Bạn đã tham gia Official Account thành công!');
+                            addTestResult('Popup thành công được hiển thị', 'success');
+                        }, 1000);
+                    } else {
+                        setTimeout(() => {
+                            alert('⚠️ Bạn chưa tham gia Official Account. Vui lòng tham gia để nhận thông báo từ câu lạc bộ.');
+                            addTestResult('Popup thông báo được hiển thị', 'info');
+                        }, 1000);
+                    }
+                } else {
+                    showStatus('real-api-status', `❌ API thực tế lỗi: ${data.message}`, 'error');
+                    addTestResult(`Real API call failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showStatus('real-api-status', `❌ Lỗi kết nối API thực tế: ${error.message}`, 'error');
+                addTestResult(`Real API call error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto test khi load trang
+        window.onload = function() {
+            addTestResult('Trang test đã được load', 'info');
+            addTestResult('Sẵn sàng để test tính năng popup OA follow', 'info');
+        };
+    </script>
+</body>
+</html>
