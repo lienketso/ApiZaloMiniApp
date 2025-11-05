@@ -882,7 +882,7 @@ class ClubController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Tham gia câu lạc bộ thành công',
+                'message' => 'Yêu cầu tham gia câu lạc bộ đã được gửi! Vui lòng chờ admin duyệt.',
                 'data' => $userClub->load('club')
             ]);
             

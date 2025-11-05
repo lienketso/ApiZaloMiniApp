@@ -135,11 +135,22 @@ class UserClubController extends Controller
 
             \Log::info('UserClubController::index - Loading members for club:', ['club_id' => $clubId]);
 
-            // Lấy thành viên từ bảng user_clubs
-            $userClubs = UserClub::where('club_id', $clubId)
+            // Lấy thành viên từ bảng user_clubs (chỉ lấy active members - đã được duyệt)
+            $statusFilter = $request->input('status') ?? $request->query('status');
+            
+            $userClubsQuery = UserClub::where('club_id', $clubId)
                 ->where('is_active', true)
-                ->with(['user', 'club'])
-                ->get();
+                ->with(['user', 'club']);
+            
+            // Nếu có filter status, áp dụng filter
+            if ($statusFilter === 'active') {
+                $userClubsQuery->where('status', 'active');
+            } else {
+                // Mặc định chỉ lấy active members (đã được duyệt)
+                $userClubsQuery->where('status', 'active');
+            }
+            
+            $userClubs = $userClubsQuery->get();
 
             \Log::info('UserClubController::index - Found user clubs:', ['count' => $userClubs->count()]);
 
@@ -181,6 +192,7 @@ class UserClubController extends Controller
                         'notes' => $userClub->notes,
                         'avatar' => null, // Có thể thêm avatar sau
                         'is_active' => $userClub->is_active,
+                        'status' => $userClub->status ?? 'active', // Thêm status để frontend có thể filter
                         // Thêm thông tin user để frontend dễ sử dụng
                         'user' => [
                             'id' => $userClub->user->id,
