@@ -204,67 +204,48 @@ class ClubController extends Controller
     }
 
     /**
-     * Show club by ID - xử lý trường hợp user chưa có club
+     * Show club by ID - Public endpoint, không cần permission để xem chi tiết
+     * Ai cũng có thể xem thông tin công khai của câu lạc bộ
      */
     public function show($id)
     {
         try {
-            $userId = $this->getCurrentUserId();
+            // Lấy club với thông tin công khai (không cần kiểm tra membership)
+            $club = Club::withCount(['users', 'events', 'matches'])
+                ->with(['creator:id,name,avatar'])
+                ->find($id);
 
-            if (!$userId) {
+            if (!$club) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User not authenticated'
-                ], 401);
-            }
-
-            // Kiểm tra xem user có club nào không từ bảng user_clubs (chỉ tính các club có status active)
-            $userClubs = UserClub::where('user_id', $userId)
-                ->where('status', 'active')
-                ->where('is_active', true)
-                ->count();
-            
-            if ($userClubs === 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Bạn chưa tham gia câu lạc bộ nào. Vui lòng chọn hoặc tạo câu lạc bộ trước.',
-                    'code' => 'NO_CLUB_FOUND',
-                    'action_required' => 'select_or_create_club'
+                    'message' => 'Không tìm thấy câu lạc bộ'
                 ], 404);
             }
 
-            // Kiểm tra xem user có quyền truy cập club này không (phải có status = 'active' và được admin duyệt)
-            $userClub = UserClub::where('user_id', $userId)
-                ->where('club_id', $id)
-                ->where('status', 'active') // Phải có status active (đã được admin duyệt)
-                ->where('is_active', true)
-                ->first();
-
-            if (!$userClub) {
-                // Kiểm tra xem user có membership với status pending không
-                $pendingMembership = UserClub::where('user_id', $userId)
-                    ->where('club_id', $id)
-                    ->where('status', 'pending')
-                    ->first();
-                
-                if ($pendingMembership) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Yêu cầu tham gia của bạn đang chờ admin duyệt. Vui lòng chờ xác nhận từ admin.',
-                        'code' => 'PENDING_APPROVAL',
-                        'status' => 'pending'
-                    ], 403);
-                }
-                
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Bạn không có quyền truy cập câu lạc bộ này',
-                    'code' => 'ACCESS_DENIED'
-                ], 403);
-            }
-
-            // Nếu có quyền, gọi method getClubInfo
-            return $this->getClubInfo($id);
+            // Trả về thông tin công khai của club
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $club->id,
+                    'name' => $club->name,
+                    'sport' => $club->sport,
+                    'address' => $club->address,
+                    'description' => $club->description,
+                    'phone' => $club->phone,
+                    'email' => $club->email,
+                    'logo' => $club->logo,
+                    'bank_name' => $club->bank_name,
+                    'account_name' => $club->account_name,
+                    'account_number' => $club->account_number,
+                    'is_setup' => $club->is_setup,
+                    'users_count' => $club->users_count ?? 0,
+                    'events_count' => $club->events_count ?? 0,
+                    'matches_count' => $club->matches_count ?? 0,
+                    'creator' => $club->creator,
+                    'created_at' => $club->created_at,
+                    'updated_at' => $club->updated_at
+                ]
+            ]);
             
         } catch (\Exception $e) {
             return response()->json([
