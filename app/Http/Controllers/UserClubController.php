@@ -252,6 +252,7 @@ class UserClubController extends Controller
             'club_role' => 'required|in:member,admin,guest',
             'joined_date' => 'nullable|date',
             'notes' => 'nullable|string',
+            'status' => 'nullable|in:pending,active,rejected',
         ]);
 
         try {
@@ -288,13 +289,17 @@ class UserClubController extends Controller
             }
 
             // Tạo user club mới (sử dụng bảng user_clubs)
+            $status = $request->status ?? 'active'; // Mặc định là active nếu không có
+            $isActive = ($status === 'active'); // is_active = true nếu status là active
+            
             $userClub = UserClub::create([
                 'club_id' => $request->club_id,
                 'user_id' => $user->id,
                 'role' => $request->club_role,
                 'joined_date' => $request->joined_date ?? now(),
                 'notes' => $request->notes,
-                'is_active' => true,
+                'status' => $status,
+                'is_active' => $isActive,
             ]);
 
             // Load relationships
@@ -316,6 +321,7 @@ class UserClubController extends Controller
                 'notes' => $userClub->user->notes,
                 'avatar' => null,
                 'is_active' => $userClub->is_active,
+                'status' => $userClub->status ?? 'active',
             ];
 
             return response()->json([
@@ -382,6 +388,7 @@ class UserClubController extends Controller
             'club_role' => 'nullable|in:member,admin,guest',
             'notes' => 'nullable|string',
             'is_active' => 'boolean',
+            'status' => 'nullable|in:pending,active,rejected',
         ]);
 
         try {
@@ -394,7 +401,14 @@ class UserClubController extends Controller
             }
 
             // Cập nhật thông tin user club
-            $userClub->update($request->only(['club_role', 'notes', 'is_active']));
+            $updateData = $request->only(['club_role', 'notes', 'is_active', 'status']);
+            
+            // Nếu có status, cập nhật is_active tương ứng
+            if ($request->has('status')) {
+                $updateData['is_active'] = ($request->status === 'active');
+            }
+            
+            $userClub->update($updateData);
 
             // Load relationships
             $userClub->load(['user', 'club']);
@@ -415,6 +429,7 @@ class UserClubController extends Controller
                 'notes' => $userClub->notes,
                 'avatar' => null,
                 'is_active' => $userClub->is_active,
+                'status' => $userClub->status ?? 'active',
             ];
 
             return response()->json([
