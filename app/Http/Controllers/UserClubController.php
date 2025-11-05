@@ -190,7 +190,8 @@ class UserClubController extends Controller
                         'created_at' => $userClub->created_at,
                         'updated_at' => $userClub->updated_at,
                         'notes' => $userClub->notes,
-                        'avatar' => null, // Có thể thêm avatar sau
+                        'avatar' => $userClub->user->avatar ?? null, // Avatar từ user
+                        'zalo_avatar' => $userClub->user->zalo_avatar ?? null, // Zalo avatar từ user (trực tiếp ở level member)
                         'is_active' => $userClub->is_active,
                         'status' => $userClub->status ?? 'active', // Thêm status để frontend có thể filter
                         // Thêm thông tin user để frontend dễ sử dụng
