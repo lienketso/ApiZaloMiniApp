@@ -649,12 +649,12 @@ class ClubController extends Controller
                 ], 400);
             }
 
-            // Tối ưu: Chỉ load cần thiết, sử dụng pagination
-            $page = $request->query('page', 1);
-            $perPage = $request->query('per_page', 20);
+            // Pagination parameters
+            $limit = (int)($request->input('limit') ?? $request->query('limit') ?? 10);
+            $offset = (int)($request->input('offset') ?? $request->query('offset') ?? 0);
             $search = $request->query('search');
 
-            // Query tối ưu cho joined clubs
+            // Query tối ưu cho joined clubs (không pagination vì thường ít)
             $joinedClubsQuery = Club::where('is_setup', true)
                 ->whereHas('userClubs', function($query) use ($userId) {
                     $query->where('user_id', $userId);
@@ -676,10 +676,15 @@ class ClubController extends Controller
                 $availableClubsQuery->where('name', 'like', "%{$search}%");
             }
 
-            // Không pagination cho cả available clubs và joined clubs - trả về array trực tiếp
+            // Get total count cho available clubs trước khi paginate
+            $totalAvailableCount = $availableClubsQuery->count();
+
+            // Pagination cho available clubs
             $availableClubs = $availableClubsQuery
                 ->orderBy('created_at', 'desc')
-                ->get(); // Sử dụng get() thay vì paginate()
+                ->offset($offset)
+                ->limit($limit)
+                ->get();
 
             // Không pagination cho joined clubs (thường ít)
             $joinedClubs = $joinedClubsQuery
@@ -701,10 +706,15 @@ class ClubController extends Controller
                 'success' => true,
                 'data' => [
                     'joined_clubs' => $joinedClubs,
-                    'available_clubs' => $availableClubs, // Giờ đây là array
+                    'available_clubs' => $availableClubs,
                     'total_joined' => $joinedClubs->count(),
-                    'total_available' => $availableClubs->count()
-                ]
+                    'total_available' => $totalAvailableCount
+                ],
+                // Pagination metadata cho available clubs
+                'total' => $totalAvailableCount,
+                'per_page' => $limit,
+                'current_page' => ($offset / $limit) + 1,
+                'has_more' => ($offset + $limit) < $totalAvailableCount
             ]);
             
         } catch (\Exception $e) {
