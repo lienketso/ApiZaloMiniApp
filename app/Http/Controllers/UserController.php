@@ -293,6 +293,142 @@ class UserController extends Controller
     }
 
     /**
+     * Upload avatar cho user
+     */
+    public function uploadAvatar(Request $request)
+    {
+        try {
+            // Debug logging
+            \Log::info('UserController::uploadAvatar - Request received', [
+                'all_data' => $request->all(),
+                'files' => $request->allFiles(),
+                'has_file_avatar' => $request->hasFile('avatar'),
+                'headers' => $request->headers->all()
+            ]);
+
+            // Lấy zalo_gid từ request
+            $zaloGid = $request->input('zalo_gid') ?? $request->header('X-Zalo-GID');
+
+            if (!$zaloGid) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'zalo_gid is required'
+                ], 400);
+            }
+
+            // Tìm user theo zalo_gid
+            $user = User::where('zalo_gid', $zaloGid)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found with this zalo_gid'
+                ], 404);
+            }
+
+            $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+                'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
+
+            if ($validator->fails()) {
+                \Log::warning('UserController::uploadAvatar - Validation failed', [
+                    'errors' => $validator->errors()->toArray(),
+                    'request_data' => $request->all()
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            \Log::info('UserController::uploadAvatar - Validation passed');
+
+            // Tự động tạo thư mục uploads/users nếu chưa có
+            $uploadPath = public_path('uploads/users');
+            if (!file_exists($uploadPath)) {
+                try {
+                    // Tạo thư mục uploads nếu chưa có
+                    if (!file_exists(public_path('uploads'))) {
+                        mkdir(public_path('uploads'), 0755, true);
+                        \Log::info('Created uploads directory');
+                    }
+                    
+                    // Tạo thư mục users
+                    mkdir($uploadPath, 0755, true);
+                    \Log::info('Created uploads/users directory');
+                    
+                    // Phân quyền thư mục
+                    chmod(public_path('uploads'), 0755);
+                    chmod($uploadPath, 0755);
+                    \Log::info('Set permissions for upload directories');
+                    
+                } catch (\Exception $e) {
+                    \Log::error('Error creating upload directories: ' . $e->getMessage());
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Error creating upload directory: ' . $e->getMessage()
+                    ], 500);
+                }
+            }
+
+            // Kiểm tra quyền ghi vào thư mục
+            if (!is_writable($uploadPath)) {
+                try {
+                    chmod($uploadPath, 0755);
+                    \Log::info('Fixed write permissions for uploads/users directory');
+                } catch (\Exception $e) {
+                    \Log::error('Error setting write permissions: ' . $e->getMessage());
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Error setting write permissions for upload directory'
+                    ], 500);
+                }
+            }
+
+            $file = $request->file('avatar');
+            $fileName = 'user_avatar_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+
+            // Store in public/uploads/users directory
+            $file->move($uploadPath, $fileName);
+
+            // Get the public URL - giữ đường dẫn tương đối để dễ thay đổi tên miền
+            $url = '/uploads/users/' . $fileName;
+
+            // Cập nhật avatar URL vào database
+            $user->update(['avatar' => $url]);
+
+            \Log::info('Avatar uploaded successfully for user ' . $user->id . ': ' . $fileName);
+
+            // Tính toán stats
+            $totalEvents = \App\Models\Event::count();
+            $totalAttendance = $user->attendances()->count();
+            $attendanceRate = $totalEvents > 0 ? round(($totalAttendance / $totalEvents) * 100) : 0;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Avatar uploaded successfully',
+                'data' => array_merge($user->fresh()->toArray(), [
+                    'avatar_url' => $url,
+                    'filename' => $fileName,
+                    'total_events' => $totalEvents,
+                    'total_attendance' => $totalAttendance,
+                    'attendance_rate' => $attendanceRate,
+                ])
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error uploading avatar: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error uploading avatar',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Xóa dữ liệu liên quan đến user
      */
     private function removeUserRelatedData(User $user)
