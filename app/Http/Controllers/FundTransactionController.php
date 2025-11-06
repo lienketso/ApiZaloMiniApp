@@ -82,17 +82,29 @@ class FundTransactionController extends Controller
                 $query->where('match_id', $request->match_id);
             }
 
+            // Pagination parameters
+            $limit = (int)($request->input('limit') ?? $request->query('limit') ?? 10);
+            $offset = (int)($request->input('offset') ?? $request->query('offset') ?? 0);
+            
+            // Get total count trước khi paginate
+            $totalCount = $query->count();
+            
+            // Apply pagination
             $transactions = $query
                 ->orderBy('transaction_date', 'desc')
                 ->orderBy('created_at', 'desc')
+                ->offset($offset)
+                ->limit($limit)
                 ->get();
-
-
 
             return response()->json([
                 'success' => true,
                 'data' => $transactions,
-                'message' => 'Lấy danh sách giao dịch thành công'
+                'message' => 'Lấy danh sách giao dịch thành công',
+                'total' => $totalCount,
+                'per_page' => $limit,
+                'current_page' => ($offset / $limit) + 1,
+                'has_more' => ($offset + $limit) < $totalCount
             ]);
         } catch (\Exception $e) {
             \Log::error('FundTransactionController::index - Error fetching transactions:', [

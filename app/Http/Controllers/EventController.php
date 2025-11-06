@@ -15,19 +15,38 @@ class EventController extends Controller
             // Lấy club_id từ request hoặc từ user hiện tại
             $clubId = $request->input('club_id') ?? $request->query('club_id');
             
+            // Pagination parameters
+            $limit = (int)($request->input('limit') ?? $request->query('limit') ?? 10);
+            $offset = (int)($request->input('offset') ?? $request->query('offset') ?? 0);
+            
+            $eventsQuery = Event::with(['attendances.user', 'club']);
+            
             if (!$clubId) {
                 // Nếu không có club_id, trả về tất cả events (fallback)
-                $events = Event::with(['attendances.user', 'club'])->get();
+                $totalCount = $eventsQuery->count();
+                $events = $eventsQuery
+                    ->orderBy('start_date', 'desc')
+                    ->offset($offset)
+                    ->limit($limit)
+                    ->get();
             } else {
                 // Filter events theo club_id
-                $events = Event::with(['attendances.user', 'club'])
+                $totalCount = $eventsQuery->where('club_id', $clubId)->count();
+                $events = $eventsQuery
                     ->where('club_id', $clubId)
+                    ->orderBy('start_date', 'desc')
+                    ->offset($offset)
+                    ->limit($limit)
                     ->get();
             }
 
             return response()->json([
                 'success' => true,
-                'data' => $events
+                'data' => $events,
+                'total' => $totalCount,
+                'per_page' => $limit,
+                'current_page' => ($offset / $limit) + 1,
+                'has_more' => ($offset + $limit) < $totalCount
             ]);
         } catch (\Exception $e) {
             Log::error('EventController::index - Exception:', [

@@ -138,6 +138,10 @@ class UserClubController extends Controller
             // Lấy thành viên từ bảng user_clubs (chỉ lấy active members - đã được duyệt)
             $statusFilter = $request->input('status') ?? $request->query('status');
             
+            // Pagination parameters
+            $limit = (int)($request->input('limit') ?? $request->query('limit') ?? 10);
+            $offset = (int)($request->input('offset') ?? $request->query('offset') ?? 0);
+            
             $userClubsQuery = UserClub::where('club_id', $clubId)
                 ->where('is_active', true)
                 ->with(['user', 'club']);
@@ -150,7 +154,15 @@ class UserClubController extends Controller
                 $userClubsQuery->where('status', 'active');
             }
             
-            $userClubs = $userClubsQuery->get();
+            // Get total count trước khi paginate
+            $totalCount = $userClubsQuery->count();
+            
+            // Apply pagination
+            $userClubs = $userClubsQuery
+                ->orderBy('created_at', 'desc')
+                ->offset($offset)
+                ->limit($limit)
+                ->get();
 
             \Log::info('UserClubController::index - Found user clubs:', ['count' => $userClubs->count()]);
 
@@ -219,7 +231,10 @@ class UserClubController extends Controller
                 'success' => true,
                 'data' => $members,
                 'message' => 'Tải danh sách thành viên thành công',
-                'total' => count($members)
+                'total' => $totalCount,
+                'per_page' => $limit,
+                'current_page' => ($offset / $limit) + 1,
+                'has_more' => ($offset + $limit) < $totalCount
             ]);
 
         } catch (\Exception $e) {

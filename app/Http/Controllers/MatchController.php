@@ -49,9 +49,19 @@ class MatchController extends Controller
                 ], 400);
             }
 
+            // Pagination parameters
+            $limit = (int)($request->input('limit') ?? $request->query('limit') ?? 10);
+            $offset = (int)($request->input('offset') ?? $request->query('offset') ?? 0);
+            
+            // Get total count trước khi paginate
+            $totalCount = GameMatch::where('club_id', $clubId)->count();
+            
+            // Apply pagination
             $matches = GameMatch::with(['teams', 'creator'])
                 ->where('club_id', $clubId)
                 ->orderBy('match_date', 'desc')
+                ->offset($offset)
+                ->limit($limit)
                 ->get()
                 ->map(function ($match) {
                     // Debug logging
@@ -211,7 +221,11 @@ class MatchController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $matches
+                'data' => $matches,
+                'total' => $totalCount,
+                'per_page' => $limit,
+                'current_page' => ($offset / $limit) + 1,
+                'has_more' => ($offset + $limit) < $totalCount
             ]);
         } catch (\Exception $e) {
             return response()->json([
