@@ -74,10 +74,11 @@ class LeaderboardController extends Controller
                     'u.id as userId',
                     'u.name as userName',
                     'u.avatar as userAvatar',
+                    'u.zalo_avatar as userZaloAvatar',
                     'u.phone as userPhone',
                     DB::raw('COUNT(*) as score')
                 )
-                ->groupBy('u.id', 'u.name', 'u.avatar', 'u.phone')
+                ->groupBy('u.id', 'u.name', 'u.avatar', 'u.zalo_avatar', 'u.phone')
                 ->orderBy('score', 'desc')
                 ->offset($offset)
                 ->limit($limit)
@@ -165,10 +166,11 @@ class LeaderboardController extends Controller
                     'u.id as userId',
                     'u.name as userName',
                     'u.avatar as userAvatar',
+                    'u.zalo_avatar as userZaloAvatar',
                     'u.phone as userPhone',
                     DB::raw('SUM(ft.amount) as score')
                 )
-                ->groupBy('u.id', 'u.name', 'u.avatar', 'u.phone')
+                ->groupBy('u.id', 'u.name', 'u.avatar', 'u.zalo_avatar', 'u.phone')
                 ->orderBy('score', 'desc')
                 ->offset($offset)
                 ->limit($limit)
@@ -256,10 +258,11 @@ class LeaderboardController extends Controller
                     'u.id as userId',
                     'u.name as userName',
                     'u.avatar as userAvatar',
+                    'u.zalo_avatar as userZaloAvatar',
                     'u.phone as userPhone',
                     DB::raw('COUNT(*) as score')
                 )
-                ->groupBy('u.id', 'u.name', 'u.avatar', 'u.phone')
+                ->groupBy('u.id', 'u.name', 'u.avatar', 'u.zalo_avatar', 'u.phone')
                 ->orderBy('score', 'desc')
                 ->offset($offset)
                 ->limit($limit)
