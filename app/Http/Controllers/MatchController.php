@@ -141,13 +141,20 @@ class MatchController extends Controller
                         \Log::warning("MatchController::index - Match {$match->id} missing teams");
                     }
                     
-                    // Lấy players cho Team A
+                    // Lấy players cho Team A (chỉ lấy active members)
                     $teamAPlayers = [];
                     if ($teamA) {
                         $teamAPlayers = \DB::table('team_players')
                             ->join('users', 'team_players.user_id', '=', 'users.id')
+                            ->join('user_clubs', function($join) use ($clubId) {
+                                $join->on('users.id', '=', 'user_clubs.user_id')
+                                     ->where('user_clubs.club_id', '=', $clubId)
+                                     ->where('user_clubs.is_active', '=', true)
+                                     ->where('user_clubs.status', '=', 'active');
+                            })
                             ->where('team_players.team_id', $teamA->id)
-                            ->select('users.id', 'users.name', 'users.avatar', 'users.phone')
+                            ->select('users.id', 'users.name', 'users.avatar', 'users.phone', 'users.zalo_avatar')
+                            ->distinct()
                             ->get();
                         
                         \Log::info("MatchController::index - Match {$match->id} Team A players:", [
@@ -166,13 +173,20 @@ class MatchController extends Controller
                         });
                     }
                     
-                    // Lấy players cho Team B
+                    // Lấy players cho Team B (chỉ lấy active members)
                     $teamBPlayers = [];
                     if ($teamB) {
                         $teamBPlayers = \DB::table('team_players')
                             ->join('users', 'team_players.user_id', '=', 'users.id')
+                            ->join('user_clubs', function($join) use ($clubId) {
+                                $join->on('users.id', '=', 'user_clubs.user_id')
+                                     ->where('user_clubs.club_id', '=', $clubId)
+                                     ->where('user_clubs.is_active', '=', true)
+                                     ->where('user_clubs.status', '=', 'active');
+                            })
                             ->where('team_players.team_id', $teamB->id)
-                            ->select('users.id', 'users.name', 'users.avatar', 'users.phone')
+                            ->select('users.id', 'users.name', 'users.avatar', 'users.phone', 'users.zalo_avatar')
+                            ->distinct()
                             ->get();
                         
                         \Log::info("MatchController::index - Match {$match->id} Team B players:", [
@@ -716,6 +730,23 @@ class MatchController extends Controller
                 ], 404);
             }
 
+            // Validate tất cả players phải là active members của club
+            $allPlayers = array_merge($teamAPlayers, $teamBPlayers);
+            $activeMembers = \App\Models\UserClub::where('club_id', $clubId)
+                ->where('is_active', true)
+                ->where('status', 'active')
+                ->pluck('user_id')
+                ->toArray();
+            
+            $invalidPlayers = array_diff($allPlayers, $activeMembers);
+            if (!empty($invalidPlayers)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Một số cầu thủ không phải là thành viên active của câu lạc bộ. Vui lòng chỉ chọn các thành viên đã được duyệt.',
+                    'invalid_players' => $invalidPlayers
+                ], 422);
+            }
+
             // Lấy hoặc tạo teams sử dụng helper method
             [$teamA, $teamB] = $this->getOrCreateTeams($match->id);
 
@@ -762,8 +793,15 @@ class MatchController extends Controller
                         'name' => $teamA->name,
                         'players' => \DB::table('team_players')
                             ->join('users', 'team_players.user_id', '=', 'users.id')
+                            ->join('user_clubs', function($join) use ($clubId) {
+                                $join->on('users.id', '=', 'user_clubs.user_id')
+                                     ->where('user_clubs.club_id', '=', $clubId)
+                                     ->where('user_clubs.is_active', '=', true)
+                                     ->where('user_clubs.status', '=', 'active');
+                            })
                             ->where('team_players.team_id', $teamA->id)
-                            ->select('users.id', 'users.name', 'users.avatar')
+                            ->select('users.id', 'users.name', 'users.avatar', 'users.zalo_avatar')
+                            ->distinct()
                             ->get()
                     ],
                     'teamB' => [
@@ -771,8 +809,15 @@ class MatchController extends Controller
                         'name' => $teamB->name,
                         'players' => \DB::table('team_players')
                             ->join('users', 'team_players.user_id', '=', 'users.id')
+                            ->join('user_clubs', function($join) use ($clubId) {
+                                $join->on('users.id', '=', 'user_clubs.user_id')
+                                     ->where('user_clubs.club_id', '=', $clubId)
+                                     ->where('user_clubs.is_active', '=', true)
+                                     ->where('user_clubs.status', '=', 'active');
+                            })
                             ->where('team_players.team_id', $teamB->id)
-                            ->select('users.id', 'users.name', 'users.avatar')
+                            ->select('users.id', 'users.name', 'users.avatar', 'users.zalo_avatar')
+                            ->distinct()
                             ->get()
                     ]
                 ]
@@ -1143,11 +1188,18 @@ class MatchController extends Controller
                 'bet_amount' => $match->bet_amount
             ]);
 
-            // Lấy danh sách cầu thủ của đội thua
+            // Lấy danh sách cầu thủ của đội thua (chỉ lấy active members)
             $loserPlayers = \DB::table('team_players')
                 ->join('users', 'team_players.user_id', '=', 'users.id')
+                ->join('user_clubs', function($join) use ($match) {
+                    $join->on('users.id', '=', 'user_clubs.user_id')
+                         ->where('user_clubs.club_id', '=', $match->club_id)
+                         ->where('user_clubs.is_active', '=', true)
+                         ->where('user_clubs.status', '=', 'active');
+                })
                 ->where('team_players.team_id', $loserTeam->id)
                 ->select('users.id', 'users.name')
+                ->distinct()
                 ->get();
 
             \Log::info('MatchController::createFundTransactionsForLosers - Loser team players (will pay fund):', [
@@ -1362,6 +1414,13 @@ class MatchController extends Controller
                 ], 404);
             }
 
+            // Lấy danh sách active member IDs để filter players
+            $activeMemberIds = \App\Models\UserClub::where('club_id', $clubId)
+                ->where('is_active', true)
+                ->where('status', 'active')
+                ->pluck('user_id')
+                ->toArray();
+
             $matchData = [
                 'id' => $match->id,
                 'title' => $match->title,
@@ -1376,28 +1435,40 @@ class MatchController extends Controller
                 'teamA' => [
                     'id' => $match->teams->where('name', 'like', '%A%')->first()?->id,
                     'name' => 'Đội A',
-                    'players' => $match->teams->where('name', 'like', '%A%')->first()?->players->map(function ($player) {
-                        return [
-                            'id' => $player->id,
-                            'name' => $player->name,
-                            'avatar' => $player->avatar,
-                            'phone' => $player->phone
-                        ];
-                    }) ?? [],
+                    'players' => $match->teams->where('name', 'like', '%A%')->first()?->players
+                        ->filter(function ($player) use ($activeMemberIds) {
+                            return in_array($player->id, $activeMemberIds);
+                        })
+                        ->map(function ($player) {
+                            return [
+                                'id' => $player->id,
+                                'name' => $player->name,
+                                'avatar' => $player->avatar,
+                                'phone' => $player->phone,
+                                'zalo_avatar' => $player->zalo_avatar ?? null
+                            ];
+                        })
+                        ->values() ?? [],
                     'score' => $match->teams->where('name', 'like', '%A%')->first()?->score,
                     'isWinner' => $match->teams->where('name', 'like', '%A%')->first()?->is_winner
                 ],
                 'teamB' => [
                     'id' => $match->teams->where('name', 'like', '%B%')->first()?->id,
                     'name' => 'Đội B',
-                    'players' => $match->teams->where('name', 'like', '%B%')->first()?->players->map(function ($player) {
-                        return [
-                            'id' => $player->id,
-                            'name' => $player->name,
-                            'avatar' => $player->avatar,
-                            'phone' => $player->phone
-                        ];
-                    }) ?? [],
+                    'players' => $match->teams->where('name', 'like', '%B%')->first()?->players
+                        ->filter(function ($player) use ($activeMemberIds) {
+                            return in_array($player->id, $activeMemberIds);
+                        })
+                        ->map(function ($player) {
+                            return [
+                                'id' => $player->id,
+                                'name' => $player->name,
+                                'avatar' => $player->avatar,
+                                'phone' => $player->phone,
+                                'zalo_avatar' => $player->zalo_avatar ?? null
+                            ];
+                        })
+                        ->values() ?? [],
                     'score' => $match->teams->where('name', 'like', '%B%')->first()?->score,
                     'isWinner' => $match->teams->where('name', 'like', '%B%')->first()?->is_winner
                 ]
