@@ -63,7 +63,7 @@ class MatchController extends Controller
                 ->offset($offset)
                 ->limit($limit)
                 ->get()
-                ->map(function ($match) {
+                ->map(function ($match) use ($clubId) {
                     // Debug logging
                     \Log::info("MatchController::index - Processing match ID: {$match->id}");
                     
