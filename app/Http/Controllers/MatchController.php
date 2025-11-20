@@ -1466,18 +1466,29 @@ class MatchController extends Controller
                 ], 400);
             }
 
+            // Chỉ lấy các user đã active (is_active = true và status = 'active')
             $users = User::whereHas('clubs', function($query) use ($clubId) {
-                    $query->where('club_id', $clubId);
+                    $query->where('club_id', $clubId)
+                          ->where('is_active', true)
+                          ->where('status', 'active');
                 })
-                ->select('id', 'name', 'avatar', 'phone')
+                ->select('id', 'name', 'avatar', 'phone', 'zalo_avatar')
                 ->get()
-                ->map(function ($user) {
+                ->map(function ($user) use ($clubId) {
+                    // Lấy user_club relationship để có thông tin role
+                    $userClub = \App\Models\UserClub::where('user_id', $user->id)
+                        ->where('club_id', $clubId)
+                        ->where('is_active', true)
+                        ->where('status', 'active')
+                        ->first();
+                    
                     return [
                         'id' => $user->id,
                         'name' => $user->name,
                         'avatar' => $user->avatar,
+                        'zalo_avatar' => $user->zalo_avatar,
                         'phone' => $user->phone,
-                        'role' => $user->clubs->first()->pivot->role ?? 'member'
+                        'role' => $userClub ? $userClub->role : 'member'
                     ];
                 });
 
