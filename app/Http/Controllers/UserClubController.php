@@ -417,7 +417,12 @@ class UserClubController extends Controller
             }
 
             // Cập nhật thông tin user club
-            $updateData = $request->only(['club_role', 'notes', 'is_active', 'status']);
+            $updateData = $request->only(['notes', 'is_active', 'status']);
+            
+            // Map club_role thành role (vì frontend gửi club_role nhưng database dùng role)
+            if ($request->has('club_role')) {
+                $updateData['role'] = $request->club_role;
+            }
             
             // Nếu có status, cập nhật is_active tương ứng
             if ($request->has('status')) {

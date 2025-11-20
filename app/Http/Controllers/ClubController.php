@@ -653,6 +653,7 @@ class ClubController extends Controller
             $limit = (int)($request->input('limit') ?? $request->query('limit') ?? 10);
             $offset = (int)($request->input('offset') ?? $request->query('offset') ?? 0);
             $search = $request->query('search');
+            $sport = $request->query('sport'); // Filter theo bộ môn
 
             // Query tối ưu cho joined clubs (không pagination vì thường ít)
             $joinedClubsQuery = Club::where('is_setup', true)
@@ -670,10 +671,16 @@ class ClubController extends Controller
                 ->withCount(['users', 'events', 'matches'])
                 ->with(['creator:id,name,avatar', 'users:id,name,avatar', 'events:id,title,start_date', 'matches:id,title,match_date']); // Load đầy đủ relationships
 
-            // Thêm search nếu có
+            // Thêm search theo tên nếu có
             if ($search) {
                 $joinedClubsQuery->where('name', 'like', "%{$search}%");
                 $availableClubsQuery->where('name', 'like', "%{$search}%");
+            }
+
+            // Thêm filter theo bộ môn nếu có
+            if ($sport) {
+                $joinedClubsQuery->where('sport', $sport);
+                $availableClubsQuery->where('sport', $sport);
             }
 
             // Get total count cho available clubs trước khi paginate
