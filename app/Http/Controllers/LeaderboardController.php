@@ -46,9 +46,9 @@ class LeaderboardController extends Controller
                 ->where('m.club_id', $clubId)
                 ->where('m.status', 'completed');
 
-            // Lọc theo thời gian dựa trên trường date của matches
+            // Lọc theo thời gian dựa trên trường match_date của matches (không phải date)
             if ($period !== 'all') {
-                $query = $this->applyTimeFilter($query, 'm.date', $period);
+                $query = $this->applyTimeFilter($query, 'm.match_date', $period);
             }
 
             // Get total count trước khi paginate (số lượng user unique)
@@ -63,7 +63,7 @@ class LeaderboardController extends Controller
                 ->where('m.status', 'completed');
             
             if ($period !== 'all') {
-                $totalCountQuery = $this->applyTimeFilter($totalCountQuery, 'm.date', $period);
+                $totalCountQuery = $this->applyTimeFilter($totalCountQuery, 'm.match_date', $period);
             }
             
             $totalCount = $totalCountQuery->select(DB::raw('COUNT(DISTINCT u.id) as total'))
@@ -234,9 +234,9 @@ class LeaderboardController extends Controller
                 ->where('e.club_id', $clubId)
                 ->where('a.status', 'present');
 
-            // Lọc theo thời gian dựa trên trường date của events
+            // Lọc theo thời gian dựa trên trường start_date của events (không phải date)
             if ($period !== 'all') {
-                $query = $this->applyTimeFilter($query, 'e.date', $period);
+                $query = $this->applyTimeFilter($query, 'e.start_date', $period);
             }
 
             // Get total count trước khi paginate (số lượng user unique)
@@ -247,7 +247,7 @@ class LeaderboardController extends Controller
                 ->where('a.status', 'present');
             
             if ($period !== 'all') {
-                $totalCountQuery = $this->applyTimeFilter($totalCountQuery, 'e.date', $period);
+                $totalCountQuery = $this->applyTimeFilter($totalCountQuery, 'e.start_date', $period);
             }
             
             $totalCount = $totalCountQuery->select(DB::raw('COUNT(DISTINCT u.id) as total'))
