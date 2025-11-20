@@ -135,7 +135,7 @@ class UserClubController extends Controller
 
             \Log::info('UserClubController::index - Loading members for club:', ['club_id' => $clubId]);
 
-            // Lấy thành viên từ bảng user_clubs (chỉ lấy active members - đã được duyệt)
+            // Lấy thành viên từ bảng user_clubs
             $statusFilter = $request->input('status') ?? $request->query('status');
             
             // Pagination parameters
@@ -143,15 +143,23 @@ class UserClubController extends Controller
             $offset = (int)($request->input('offset') ?? $request->query('offset') ?? 0);
             
             $userClubsQuery = UserClub::where('club_id', $clubId)
-                ->where('is_active', true)
                 ->with(['user', 'club']);
             
             // Nếu có filter status, áp dụng filter
-            if ($statusFilter === 'active') {
-                $userClubsQuery->where('status', 'active');
+            if ($statusFilter === 'rejected') {
+                // Lấy rejected members (không filter is_active vì rejected thường có is_active = false)
+                $userClubsQuery->where('status', 'rejected');
+            } else if ($statusFilter === 'pending') {
+                // Lấy pending members (không filter is_active)
+                $userClubsQuery->where('status', 'pending');
+            } else if ($statusFilter === 'active') {
+                // Lấy active members (đã được duyệt và active)
+                $userClubsQuery->where('status', 'active')
+                    ->where('is_active', true);
             } else {
                 // Mặc định chỉ lấy active members (đã được duyệt)
-                $userClubsQuery->where('status', 'active');
+                $userClubsQuery->where('status', 'active')
+                    ->where('is_active', true);
             }
             
             // Get total count trước khi paginate
