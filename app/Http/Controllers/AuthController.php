@@ -34,6 +34,10 @@ class AuthController extends Controller
 
             if (Auth::attempt($credentials)) {
                 $user = Auth::user();
+                $user->forceFill([
+                    'last_login_at' => now(),
+                    'last_seen_at' => now(),
+                ])->save();
                 $token = $user->createToken('auth-token')->plainTextToken;
 
                 return response()->json([

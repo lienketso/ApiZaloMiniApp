@@ -2,6 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\WebAuthController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Admin\ClubController as AdminClubController;
+use App\Http\Controllers\Admin\MemberController as AdminMemberController;
 use App\Models\ZaloToken;
 
 Route::get('/', function () {
@@ -16,12 +19,16 @@ Route::post('/register', [WebAuthController::class, 'register']);
 Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
 
 // Dashboard route
-Route::get('/dashboard', function () {
-    if (!session('auth_token')) {
-        return redirect('/login');
-    }
-    return view('dashboard');
-})->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware('super-admin')
+    ->name('dashboard');
+
+Route::middleware('super-admin')->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('clubs', AdminClubController::class)->except(['show']);
+    Route::resource('members', AdminMemberController::class)->except(['show']);
+    Route::post('members/{member}/reset-password', [AdminMemberController::class, 'resetPassword'])
+        ->name('members.reset-password');
+});
 
 // Web routes (nếu cần)
 // Route::get('/dashboard', function () {

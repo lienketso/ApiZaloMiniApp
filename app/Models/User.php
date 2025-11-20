@@ -22,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'phone',
+        'role',
         'gender',
         'birthday',
         'password',
@@ -32,6 +33,8 @@ class User extends Authenticatable
         'zalo_avatar',
         'zalo_access_token',
         'zalo_refresh_token',
+        'last_login_at',
+        'last_seen_at',
         'zalo_token_expires_at',
     ];
 
@@ -57,7 +60,10 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'birthday' => 'datetime',
             'zalo_token_expires_at' => 'datetime',
+            'last_login_at' => 'datetime',
+            'last_seen_at' => 'datetime',
         ];
     }
 

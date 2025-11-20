@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Session;
-
+use Illuminate\Support\Str;
 class WebAuthController extends Controller
 {
     /**
@@ -13,6 +15,7 @@ class WebAuthController extends Controller
      */
     public function showLoginForm()
     {
+        // dd(Hash::make('123456'));   
         return view('auth.login');
     }
 
@@ -35,23 +38,36 @@ class WebAuthController extends Controller
         ]);
 
         try {
-            // Gọi API đăng nhập
-            $response = Http::post(url('/api/auth/login'), [
-                'phone' => $request->phone,
-                'password' => $request->password,
-            ]);
+            $user = User::where('phone', $request->phone)->first();
 
-            if ($response->successful()) {
-                $data = $response->json();
-                
-                // Lưu token vào session
-                Session::put('auth_token', $data['token'] ?? null);
-                Session::put('user', $data['user'] ?? null);
-                
-                return redirect('/dashboard')->with('success', 'Đăng nhập thành công!');
-            } else {
+            if (!$user || !Hash::check($request->password, $user->password)) {
                 return back()->withErrors(['error' => 'Thông tin đăng nhập không chính xác']);
             }
+
+            $role = Str::of($user->role ?? '')->lower();
+            $allowedRoles = collect(['super_admin', 'super-admin', 'superadmin']);
+
+            if (!$allowedRoles->contains($role)) {
+                return back()->withErrors(['error' => 'Bạn không có quyền truy cập khu vực quản trị Super Admin.']);
+            }
+
+            $sessionToken = Str::random(60);
+
+            $user->forceFill([
+                'last_login_at' => now(),
+                'last_seen_at' => now(),
+            ])->save();
+
+            Session::put('auth_token', $sessionToken);
+            Session::put('user', [
+                'id' => $user->id,
+                'name' => $user->name,
+                'phone' => $user->phone,
+                'role' => $user->role,
+                'email' => $user->email,
+            ]);
+
+            return redirect()->route('dashboard')->with('success', 'Đăng nhập thành công!');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Có lỗi xảy ra, vui lòng thử lại']);
         }
