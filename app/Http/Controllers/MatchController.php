@@ -1538,7 +1538,8 @@ class MatchController extends Controller
             }
 
             // Chỉ lấy các user đã active (is_active = true và status = 'active')
-            $users = User::whereHas('clubs', function($query) use ($clubId) {
+            // Sử dụng whereHas('userClubs') thay vì whereHas('clubs') để filter đúng trên bảng user_clubs
+            $users = User::whereHas('userClubs', function($query) use ($clubId) {
                     $query->where('club_id', $clubId)
                           ->where('is_active', true)
                           ->where('status', 'active');
