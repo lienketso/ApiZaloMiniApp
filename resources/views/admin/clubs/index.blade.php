@@ -58,7 +58,7 @@
                     <tr>
                         <td class="px-4 py-4">
                             <div class="flex items-center gap-3">
-                                <img src="{{ $club->logo ?? 'https://ui-avatars.com/api/?background=1e293b&color=fff&name=' . urlencode($club->name) }}" alt="{{ $club->name }}" class="h-12 w-12 rounded-2xl object-cover border border-white/10">
+                                <img src="{{ url($club->logo) ?? 'https://ui-avatars.com/api/?background=1e293b&color=fff&name=' . urlencode($club->name) }}" alt="{{ $club->name }}" class="h-12 w-12 rounded-2xl object-cover border border-white/10">
                                 <div>
                                     <p class="font-semibold text-white">{{ $club->name }}</p>
                                     <p class="text-xs text-white/50">{{ $club->address }}</p>
