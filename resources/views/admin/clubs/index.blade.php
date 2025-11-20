@@ -3,6 +3,8 @@
 @section('title', 'Quản lý CLB')
 @section('page_title', 'Danh sách câu lạc bộ')
 
+@php use Illuminate\Support\Str; @endphp
+
 @section('content')
 <div class="space-y-8">
     <div class="grid gap-4 md:grid-cols-4">
@@ -36,7 +38,7 @@
             </select>
             <button class="rounded-2xl bg-blue-500 px-4 py-2 text-sm font-semibold">Lọc</button>
         </form>
-        <a href="{{ route('admin.clubs.create') }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-5 py-2 text-sm font-semibold shadow-lg shadow-emerald-500/30">+ Tạo CLB</a>
+        <a href="{{ url('/admin/clubs/create') }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-5 py-2 text-sm font-semibold shadow-lg shadow-emerald-500/30">+ Tạo CLB</a>
     </div>
 
     <div class="overflow-hidden rounded-3xl border border-white/5">
@@ -58,7 +60,12 @@
                     <tr>
                         <td class="px-4 py-4">
                             <div class="flex items-center gap-3">
-                                <img src="{{ url($club->logo) ?? 'https://ui-avatars.com/api/?background=1e293b&color=fff&name=' . urlencode($club->name) }}" alt="{{ $club->name }}" class="h-12 w-12 rounded-2xl object-cover border border-white/10">
+                                @php
+                                    $logoUrl = $club->logo
+                                        ? (Str::startsWith($club->logo, ['http://', 'https://']) ? $club->logo : url($club->logo))
+                                        : 'https://ui-avatars.com/api/?background=1e293b&color=fff&name=' . urlencode($club->name);
+                                @endphp
+                                <img src="{{ $logoUrl }}" alt="{{ $club->name }}" class="h-12 w-12 rounded-2xl object-cover border border-white/10">
                                 <div>
                                     <p class="font-semibold text-white">{{ $club->name }}</p>
                                     <p class="text-xs text-white/50">{{ $club->address }}</p>
@@ -92,8 +99,8 @@
                         <td class="px-4 py-4 text-xs text-white/50">{{ $club->updated_at?->diffForHumans() }}</td>
                         <td class="px-4 py-4">
                             <div class="flex items-center gap-2">
-                                <a href="{{ route('admin.clubs.edit', $club) }}" class="rounded-xl border border-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10">Sửa</a>
-                                <form method="POST" action="{{ route('admin.clubs.destroy', $club) }}" onsubmit="return confirm('Xác nhận xoá CLB này?');">
+                                <a href="{{ url('/admin/clubs/' . $club->id . '/edit') }}" class="rounded-xl border border-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10">Sửa</a>
+                                <form method="POST" action="{{ url('/admin/clubs/' . $club->id) }}" onsubmit="return confirm('Xác nhận xoá CLB này?');">
                                     @csrf
                                     @method('DELETE')
                                     <button class="rounded-xl border border-red-500/30 px-3 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/10">Xoá</button>

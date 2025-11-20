@@ -3,6 +3,8 @@
 @section('title', 'Quản lý thành viên')
 @section('page_title', 'Quản lý thành viên toàn hệ thống')
 
+@php use Illuminate\Support\Str; @endphp
+
 @section('content')
 <div class="space-y-8">
     <div class="grid gap-4 md:grid-cols-4">
@@ -41,7 +43,7 @@
             </select>
             <button class="rounded-2xl bg-blue-500 px-4 py-2 text-sm font-semibold">Lọc</button>
         </form>
-        <a href="{{ route('admin.members.create') }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-5 py-2 text-sm font-semibold shadow-lg shadow-emerald-500/30">+ Thêm thành viên</a>
+        <a href="{{ url('/admin/members/create') }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-5 py-2 text-sm font-semibold shadow-lg shadow-emerald-500/30">+ Thêm thành viên</a>
     </div>
 
     <div class="overflow-hidden rounded-3xl border border-white/5">
@@ -62,7 +64,14 @@
                     <tr>
                         <td class="px-4 py-4">
                             <div class="flex items-center gap-3">
-                                <img src="{{ $member->avatar ?? 'https://ui-avatars.com/api/?background=0f172a&color=fff&name=' . urlencode($member->name) }}" alt="{{ $member->name }}" class="h-12 w-12 rounded-full object-cover border border-white/10">
+                                @php
+                                    $avatarUrl = $member->avatar
+                                        ? (Str::startsWith($member->avatar, ['http://', 'https://'])
+                                            ? $member->avatar
+                                            : url($member->avatar))
+                                        : 'https://ui-avatars.com/api/?background=0f172a&color=fff&name=' . urlencode($member->name);
+                                @endphp
+                                <img src="{{ $avatarUrl }}" alt="{{ $member->name }}" class="h-12 w-12 rounded-full object-cover border border-white/10">
                                 <div>
                                     <p class="font-semibold text-white">{{ $member->name }}</p>
                                     <p class="text-xs text-white/50">ID: {{ $member->id }}</p>
@@ -109,13 +118,13 @@
                         <td class="px-4 py-4 text-xs text-white/50">{{ $member->created_at?->diffForHumans() }}</td>
                         <td class="px-4 py-4">
                             <div class="flex items-center gap-2">
-                                <a href="{{ route('admin.members.edit', $member) }}" class="rounded-xl border border-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10">Sửa</a>
-                                <form method="POST" action="{{ route('admin.members.destroy', $member) }}" onsubmit="return confirm('Xoá thành viên này?');">
+                                <a href="{{ url('/admin/members/' . $member->id . '/edit') }}" class="rounded-xl border border-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10">Sửa</a>
+                                <form method="POST" action="{{ url('/admin/members/' . $member->id) }}" onsubmit="return confirm('Xoá thành viên này?');">
                                     @csrf
                                     @method('DELETE')
                                     <button class="rounded-xl border border-red-500/30 px-3 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/10">Xoá</button>
                                 </form>
-                                <form method="POST" action="{{ route('admin.members.reset-password', $member) }}" onsubmit="return confirm('Reset mật khẩu?');">
+                                <form method="POST" action="{{ url('/admin/members/' . $member->id . '/reset-password') }}" onsubmit="return confirm('Reset mật khẩu?');">
                                     @csrf
                                     <button class="rounded-xl border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-300 hover:bg-amber-500/10">Reset mật khẩu</button>
                                 </form>
