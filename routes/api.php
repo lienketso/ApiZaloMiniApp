@@ -415,7 +415,7 @@ Route::put('/user/profile', [UserController::class, 'updateProfile']);
 Route::post('/user/upload-avatar', [UserController::class, 'uploadAvatar']);
 Route::post('/user/withdraw-consent', [UserController::class, 'withdrawConsentAndRemoveData']);
 
-// API để lấy club members
+// API để lấy club members (chỉ lấy active members)
 Route::get('/club-members', function (Request $request) {
     try {
         $clubId = $request->query('club_id');
@@ -426,21 +426,31 @@ Route::get('/club-members', function (Request $request) {
             ], 400);
         }
         
-        // Lấy users thuộc club
-        $users = \App\Models\User::whereHas('clubs', function($query) use ($clubId) {
-                $query->where('club_id', $clubId);
+        // Lấy users thuộc club và chỉ lấy active members (is_active = true và status = 'active')
+        // Sử dụng whereHas('userClubs') để filter đúng trên bảng user_clubs
+        $users = \App\Models\User::whereHas('userClubs', function($query) use ($clubId) {
+                $query->where('club_id', $clubId)
+                      ->where('is_active', true)
+                      ->where('status', 'active');
             })
-            ->select('id', 'name', 'avatar', 'phone')
+            ->select('id', 'name', 'avatar', 'phone', 'zalo_avatar')
             ->get()
             ->map(function ($user) use ($clubId) {
-                $userClub = $user->clubs->where('id', $clubId)->first();
+                // Lấy user_club relationship để có thông tin role
+                $userClub = \App\Models\UserClub::where('user_id', $user->id)
+                    ->where('club_id', $clubId)
+                    ->where('is_active', true)
+                    ->where('status', 'active')
+                    ->first();
+                
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
                     'avatar' => $user->avatar,
+                    'zalo_avatar' => $user->zalo_avatar,
                     'phone' => $user->phone,
-                    'role' => $userClub->pivot->role ?? 'member',
-                    'joined_date' => $userClub->pivot->created_at ?? now()
+                    'role' => $userClub ? $userClub->role : 'member',
+                    'joined_date' => $userClub ? $userClub->joined_date : now()
                 ];
             });
         
