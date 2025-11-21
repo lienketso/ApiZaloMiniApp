@@ -49,6 +49,7 @@
                     <th class="px-4 py-3">Môn</th>
                     <th class="px-4 py-3">Liên hệ</th>
                     <th class="px-4 py-3">Thành viên</th>
+                    <th class="px-4 py-3">Tổng quỹ</th>
                     <th class="px-4 py-3">Trạng thái</th>
                     <th class="px-4 py-3">Plan</th>
                     <th class="px-4 py-3">Cập nhật</th>
@@ -84,6 +85,15 @@
                         </td>
                         <td class="px-4 py-4">
                             @php
+                                $totalFund = $club->total_fund ?? 0;
+                                $fundColor = $totalFund >= 0 ? 'text-emerald-300' : 'text-red-300';
+                            @endphp
+                            <p class="font-semibold {{ $fundColor }}">
+                                {{ number_format($totalFund, 0, ',', '.') }} ₫
+                            </p>
+                        </td>
+                        <td class="px-4 py-4">
+                            @php
                                 $statusColors = [
                                     'active' => 'bg-emerald-500/20 text-emerald-300',
                                     'trial' => 'bg-amber-500/20 text-amber-300',
@@ -110,7 +120,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-6 text-center text-white/60">Chưa có câu lạc bộ nào.</td>
+                        <td colspan="9" class="px-4 py-6 text-center text-white/60">Chưa có câu lạc bộ nào.</td>
                     </tr>
                 @endforelse
             </tbody>

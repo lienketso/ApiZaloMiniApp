@@ -20,6 +20,12 @@ class ClubController extends Controller
             ->withCount(['userClubs as active_members_count' => function ($query) {
                 $query->where('status', 'active');
             }])
+            ->withSum(['fundTransactions as total_income' => function ($query) {
+                $query->where('type', 'income');
+            }], 'amount')
+            ->withSum(['fundTransactions as total_expense' => function ($query) {
+                $query->where('type', 'expense');
+            }], 'amount')
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($subQuery) use ($search) {
                     $subQuery->where('name', 'like', "%{$search}%")
@@ -34,6 +40,12 @@ class ClubController extends Controller
             ->latest()
             ->paginate(10)
             ->withQueryString();
+
+        // Tính tổng quỹ cho mỗi CLB (Thu - Chi)
+        $clubs->getCollection()->transform(function ($club) {
+            $club->total_fund = ($club->total_income ?? 0) - ($club->total_expense ?? 0);
+            return $club;
+        });
 
         $stats = [
             'total' => Club::count(),

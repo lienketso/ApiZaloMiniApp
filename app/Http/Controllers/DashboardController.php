@@ -41,12 +41,30 @@ class DashboardController extends Controller
             ->distinct()
             ->count('user_id');
 
-        $revenueCurrent = FundTransaction::where('type', 'income')
-            ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
+        $totalIncome = FundTransaction::where('type', 'income')->sum('amount');
+        $totalExpense = FundTransaction::where('type', 'expense')->sum('amount');
+        $totalFund = $totalIncome - $totalExpense;
+
+        // Tính tổng quỹ đến cuối tháng trước
+        $totalIncomePrevious = FundTransaction::where('type', 'income')
+            ->where(function ($query) use ($prevEndOfMonth) {
+                $query->where('transaction_date', '<=', $prevEndOfMonth)
+                      ->orWhere(function ($q) use ($prevEndOfMonth) {
+                          $q->whereNull('transaction_date')
+                            ->where('created_at', '<=', $prevEndOfMonth);
+                      });
+            })
             ->sum('amount');
-        $revenuePrevious = FundTransaction::where('type', 'income')
-            ->whereBetween('transaction_date', [$prevStartOfMonth, $prevEndOfMonth])
+        $totalExpensePrevious = FundTransaction::where('type', 'expense')
+            ->where(function ($query) use ($prevEndOfMonth) {
+                $query->where('transaction_date', '<=', $prevEndOfMonth)
+                      ->orWhere(function ($q) use ($prevEndOfMonth) {
+                          $q->whereNull('transaction_date')
+                            ->where('created_at', '<=', $prevEndOfMonth);
+                      });
+            })
             ->sum('amount');
+        $totalFundPrevious = $totalIncomePrevious - $totalExpensePrevious;
 
         $eventsThisWeek = Event::whereBetween('start_date', [$startOfWeek, $endOfWeek])->count();
         $eventsOngoing = Event::where('start_date', '<=', $now)
@@ -67,9 +85,9 @@ class DashboardController extends Controller
                 'color' => 'from-violet-400 to-indigo-500',
             ],
             [
-                'label' => 'Doanh thu tháng',
-                'value' => $this->formatCurrency($revenueCurrent),
-                'trend' => $this->formatRevenueDelta($revenueCurrent, $revenuePrevious),
+                'label' => 'Tổng tiền quỹ các CLB',
+                'value' => $this->formatCurrency($totalFund),
+                'trend' => $this->formatRevenueDelta($totalFund, $totalFundPrevious),
                 'color' => 'from-amber-300 to-orange-400',
             ],
             [
@@ -88,7 +106,7 @@ class DashboardController extends Controller
             'clubs' => $clubs,
             'activities' => $activities,
             'menu' => $this->buildMenu(),
-            'systemStatus' => $this->buildSystemStatus($now, $revenueCurrent),
+            'systemStatus' => $this->buildSystemStatus($now, $totalFund),
         ]);
     }
 
@@ -239,14 +257,14 @@ class DashboardController extends Controller
         ];
     }
 
-    private function buildSystemStatus(Carbon $now, float|int $monthlyRevenue): array
+    private function buildSystemStatus(Carbon $now, float|int $totalFund): array
     {
         return [
             'uptime' => '100% dịch vụ ổn định',
             'latency' => 'Độ trễ API trung bình: 186ms',
             'traffic' => 'Lưu lượng: 21k request/phút',
             'backup' => 'Sao lưu gần nhất: ' . $now->copy()->subMinutes(5)->diffForHumans(),
-            'revenue' => 'Doanh thu tháng: ' . $this->formatCurrency($monthlyRevenue),
+            'revenue' => 'Tổng quỹ hệ thống: ' . $this->formatCurrency($totalFund),
         ];
     }
 

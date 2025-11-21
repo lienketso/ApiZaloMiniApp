@@ -199,6 +199,7 @@ class UserClubController extends Controller
                     return [
                         'id' => $userClub->id,
                         'user_id' => $userClub->user_id, // Thêm user_id để frontend có thể map
+                        'club_id' => $userClub->club_id, // Thêm club_id để frontend có thể verify
                         'name' => $userClub->user->name ?? 'Không xác định',
                         'phone' => $userClub->user->phone ?? null,
                         'email' => $userClub->user->email ?? null,
