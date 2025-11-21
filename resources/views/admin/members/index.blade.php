@@ -74,7 +74,7 @@
                                 <img src="{{ $avatarUrl }}" alt="{{ $member->name }}" class="h-12 w-12 rounded-full object-cover border border-white/10">
                                 <div>
                                     <p class="font-semibold text-white">{{ $member->name }}</p>
-                                    <p class="text-xs text-white/50">ID: {{ $member->id }}</p>
+                                    <p class="text-xs text-white/50">ZID: {{ $member->zalo_gid }}</p>
                                 </div>
                             </div>
                         </td>
@@ -126,7 +126,7 @@
                                 </form>
                                 <form method="POST" action="{{ url('/admin/members/' . $member->id . '/reset-password') }}" onsubmit="return confirm('Reset mật khẩu?');">
                                     @csrf
-                                    <button class="rounded-xl border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-300 hover:bg-amber-500/10">Reset mật khẩu</button>
+                                    <!-- <button class="rounded-xl border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-300 hover:bg-amber-500/10">Reset mật khẩu</button> -->
                                 </form>
                             </div>
                         </td>
