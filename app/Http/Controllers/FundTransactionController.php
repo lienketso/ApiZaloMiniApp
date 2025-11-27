@@ -562,10 +562,7 @@ class FundTransactionController extends Controller
 
             \Log::info('FundTransactionController::destroy - Using club_id:', ['club_id' => $clubId]);
 
-            // Tìm giao dịch theo ID và club_id
-            $transaction = FundTransaction::where('id', $id)
-                ->where('club_id', $clubId)
-                ->first();
+            $transaction = FundTransaction::find($id);
 
             if (!$transaction) {
                 \Log::warning('FundTransactionController::destroy - Transaction not found:', [
@@ -576,6 +573,26 @@ class FundTransactionController extends Controller
                     'success' => false,
                     'message' => 'Không tìm thấy giao dịch quỹ'
                 ], 404);
+            }
+
+            if (!$transaction->club_id) {
+                \Log::info('FundTransactionController::destroy - Transaction missing club_id, updating to request club_id', [
+                    'transaction_id' => $transaction->id,
+                    'club_id' => $clubId
+                ]);
+                $transaction->update(['club_id' => $clubId]);
+            }
+
+            if ((int)$transaction->club_id !== (int)$clubId) {
+                \Log::warning('FundTransactionController::destroy - Transaction does not belong to club', [
+                    'transaction_id' => $transaction->id,
+                    'transaction_club_id' => $transaction->club_id,
+                    'request_club_id' => $clubId
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không có quyền xóa giao dịch này'
+                ], 403);
             }
 
             \Log::info('FundTransactionController::destroy - Found transaction:', [
