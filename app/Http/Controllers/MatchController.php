@@ -6,11 +6,14 @@ use App\Models\GameMatch;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\Club;
+use App\Models\FundTransaction;
+use App\Models\FundTransactionPaymentProof;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Schema;
 
 class MatchController extends Controller
 {
@@ -1288,7 +1291,13 @@ class MatchController extends Controller
     public function destroy(Request $request, $id): JsonResponse
     {
         try {
-            $validator = Validator::make($request->all(), [
+            // Gom dữ liệu input + query để validator không bỏ sót club_id trên DELETE
+            $payload = $request->all();
+            if (!$payload && $request->query('club_id')) {
+                $payload['club_id'] = $request->query('club_id');
+            }
+
+            $validator = Validator::make($payload, [
                 'club_id' => 'required|integer|exists:clubs,id',
             ]);
 
@@ -1300,8 +1309,10 @@ class MatchController extends Controller
                 ], 422);
             }
 
-            // Lấy club_id từ request, header hoặc từ zalo_gid
-            $clubId = $request->input('club_id') ?? $request->header('X-Club-ID');
+            // Lấy club_id từ request, query, header hoặc từ zalo_gid
+            $clubId = $request->input('club_id')
+                ?? $request->query('club_id')
+                ?? $request->header('X-Club-ID');
             
             if (!$clubId) {
                 $zaloGid = $request->header('X-Zalo-GID') ?? $request->input('zalo_gid');
@@ -1336,21 +1347,38 @@ class MatchController extends Controller
                 ], 404);
             }
 
-            // Kiểm tra trạng thái match - chỉ cho phép xóa khi status = 'upcoming'
-            // if ($match->status !== 'upcoming') {
-            //     return response()->json([
-            //         'success' => false,
-            //         'message' => 'Chỉ có thể xóa trận đấu chưa bắt đầu (sắp diễn ra)'
-            //     ], 422);
-            // }
+            DB::beginTransaction();
 
-            $match->delete();
+            // Xóa team players + teams để đảm bảo không còn dữ liệu mồ côi
+            $teamIds = Team::where('match_id', $match->id)->pluck('id');
+            if ($teamIds->isNotEmpty()) {
+                DB::table('team_players')->whereIn('team_id', $teamIds)->delete();
+                Team::whereIn('id', $teamIds)->delete();
+            }
+
+            // Xóa giao dịch quỹ liên quan đến trận đấu nếu bảng có cột match_id
+            if (Schema::hasColumn('fund_transactions', 'match_id')) {
+                $transactionIds = FundTransaction::where('match_id', $match->id)->pluck('id');
+                if ($transactionIds->isNotEmpty()) {
+                    FundTransactionPaymentProof::whereIn('fund_transaction_id', $transactionIds)->delete();
+                    FundTransaction::whereIn('id', $transactionIds)->delete();
+                }
+            }
+
+            $deleted = $match->delete();
+
+            if (!$deleted) {
+                throw new \RuntimeException('Không thể xóa trận đấu. Vui lòng thử lại.');
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Xóa trận đấu thành công'
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
