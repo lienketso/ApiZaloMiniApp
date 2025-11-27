@@ -394,6 +394,7 @@ Route::put('/fund-transactions/{id}', [FundTransactionController::class, 'update
 Route::delete('/fund-transactions/{id}', [FundTransactionController::class, 'destroy']);
 Route::post('/fund-transactions/{id}', [FundTransactionController::class, 'store']); // Method override support
 Route::put('/fund-transactions/{id}/status', [FundTransactionController::class, 'updateTransactionStatus']);
+Route::post('/fund-transactions/{id}/payment-proof', [FundTransactionController::class, 'uploadPaymentProof']);
 Route::get('/fund-transactions/status/{status}', [FundTransactionController::class, 'getTransactionsByStatus']);
 Route::get('/fund-transactions/stats', [FundTransactionController::class, 'getFundStats']);
 

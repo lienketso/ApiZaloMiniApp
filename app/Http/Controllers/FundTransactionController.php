@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\FundTransaction;
+use App\Models\FundTransactionPaymentProof;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 class FundTransactionController extends Controller
 {
     /**
@@ -64,7 +67,7 @@ class FundTransactionController extends Controller
             $updatedCount = FundTransaction::whereNull('club_id')->update(['club_id' => $clubId]);
 
 
-            $query = FundTransaction::with(['creator', 'user'])
+            $query = FundTransaction::with(['creator', 'user', 'paymentProofs'])
                 ->byClub($clubId);
 
             // Filter theo trạng thái nếu có
@@ -195,7 +198,7 @@ class FundTransactionController extends Controller
                 'created_by' => $userId
             ]);
 
-            $transaction->load(['creator', 'user']);
+            $transaction->load(['creator', 'user', 'paymentProofs']);
 
             \Log::info('FundTransactionController::store - Transaction created successfully:', [
                 'transaction_id' => $transaction->id,
@@ -231,7 +234,7 @@ class FundTransactionController extends Controller
                 'club_id' => $fundTransaction->club_id
             ]);
 
-            $fundTransaction->load(['creator', 'user']);
+            $fundTransaction->load(['creator', 'user', 'paymentProofs']);
 
             return response()->json([
                 'success' => true,
@@ -421,6 +424,101 @@ class FundTransactionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi cập nhật giao dịch: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function uploadPaymentProof(Request $request, $id)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'payment_proof' => 'required|image|max:5120',
+                'notes' => 'nullable|string|max:500',
+                'club_id' => 'nullable|exists:clubs,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dữ liệu không hợp lệ',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $fundTransaction = FundTransaction::with(['paymentProofs'])->find($id);
+
+            if (!$fundTransaction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy giao dịch'
+                ], 404);
+            }
+
+            $clubId = $request->input('club_id') ?? $fundTransaction->club_id ?? $this->getCurrentUserClubId($request);
+
+            if (!$clubId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không xác định được câu lạc bộ'
+                ], 400);
+            }
+
+            if ($fundTransaction->club_id && (int)$fundTransaction->club_id !== (int)$clubId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Giao dịch không thuộc câu lạc bộ này'
+                ], 403);
+            }
+
+            if (!$fundTransaction->club_id) {
+                $fundTransaction->update(['club_id' => $clubId]);
+            }
+
+            $file = $request->file('payment_proof');
+            $fileName = sprintf(
+                'proof-%s-%s.%s',
+                $fundTransaction->id,
+                Str::random(8),
+                $file->getClientOriginalExtension()
+            );
+
+            $storagePath = sprintf('payment-proofs/club-%s/transaction-%s', $clubId, $fundTransaction->id);
+            $path = $file->storeAs($storagePath, $fileName, 'public');
+
+            $proof = FundTransactionPaymentProof::create([
+                'fund_transaction_id' => $fundTransaction->id,
+                'club_id' => $clubId,
+                'user_id' => Auth::id() ?? $request->input('user_id'),
+                'file_path' => $path,
+                'file_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getClientMimeType(),
+                'file_size' => $file->getSize(),
+                'notes' => $request->input('notes'),
+            ]);
+
+            $fundTransaction->status = 'completed';
+            $fundTransaction->save();
+            $fundTransaction->load(['creator', 'user', 'paymentProofs']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã tải ảnh chuyển khoản thành công',
+                'data' => [
+                    'transaction' => $fundTransaction,
+                    'payment_proof' => $proof,
+                    'proof_url' => Storage::disk('public')->url($proof->file_path),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('FundTransactionController::uploadPaymentProof - Error uploading payment proof:', [
+                'transaction_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể tải ảnh chuyển khoản: ' . $e->getMessage()
             ], 500);
         }
     }
