@@ -155,7 +155,7 @@ class EventController extends Controller
         }
     }
 
-    public function destroy(Event $event): JsonResponse
+    public function destroy(Request $request, Event $event): JsonResponse
     {
         try {
             $user = $this->getCurrentUser();
