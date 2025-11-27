@@ -167,7 +167,24 @@ class EventController extends Controller
                 ], 401);
             }
 
-            $eventRole = $this->getUserClubRole($user->id, $event->club_id);
+            $clubId = $event->club_id
+                ?? $request->input('club_id')
+                ?? $request->query('club_id')
+                ?? $request->header('X-Club-ID');
+
+            if (!$clubId) {
+                Log::warning('EventController::destroy - Unable to determine club_id for event deletion', [
+                    'event_id' => $event->id,
+                    'user_id' => $user->id,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không xác định được câu lạc bộ của sự kiện'
+                ], 400);
+            }
+
+            $eventRole = $this->getUserClubRole($user->id, (int) $clubId);
 
             if (!in_array(strtolower($eventRole ?? ''), ['admin', 'owner'])) {
                 return response()->json([
