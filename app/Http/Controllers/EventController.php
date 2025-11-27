@@ -167,16 +167,6 @@ class EventController extends Controller
                 ], 401);
             }
 
-            if (strtolower($user->role ?? '') !== 'admin') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Bạn không có quyền xóa sự kiện'
-                ], 403);
-            }
-
-            DB::beginTransaction();
-
-            // Xóa các bản ghi liên quan để tránh dữ liệu mồ côi
             $eventRole = $this->getUserClubRole($user->id, $event->club_id);
 
             if (!in_array(strtolower($eventRole ?? ''), ['admin', 'owner'])) {
