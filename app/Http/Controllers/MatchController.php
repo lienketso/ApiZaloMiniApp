@@ -1291,6 +1291,16 @@ class MatchController extends Controller
     public function destroy(Request $request, $id): JsonResponse
     {
         try {
+            \Log::info('MatchController::destroy - Request received', [
+                'match_id' => $id,
+                'body' => $request->all(),
+                'query' => $request->query(),
+                'headers' => [
+                    'X-Club-ID' => $request->header('X-Club-ID'),
+                    'X-Zalo-GID' => $request->header('X-Zalo-GID'),
+                ]
+            ]);
+
             // Gom dữ liệu input + query để validator không bỏ sót club_id trên DELETE
             $payload = $request->all();
             if (!$payload && $request->query('club_id')) {
@@ -1341,6 +1351,10 @@ class MatchController extends Controller
             $match = GameMatch::where('club_id', $clubId)->find($id);
             
             if (!$match) {
+                \Log::warning('MatchController::destroy - Match not found', [
+                    'match_id' => $id,
+                    'club_id' => $clubId
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Không tìm thấy trận đấu'
@@ -1348,6 +1362,11 @@ class MatchController extends Controller
             }
 
             DB::beginTransaction();
+
+            \Log::info('MatchController::destroy - Deleting related teams and transactions', [
+                'match_id' => $match->id,
+                'club_id' => $clubId
+            ]);
 
             // Xóa team players + teams để đảm bảo không còn dữ liệu mồ côi
             $teamIds = Team::where('match_id', $match->id)->pluck('id');
@@ -1362,16 +1381,27 @@ class MatchController extends Controller
                 if ($transactionIds->isNotEmpty()) {
                     FundTransactionPaymentProof::whereIn('fund_transaction_id', $transactionIds)->delete();
                     FundTransaction::whereIn('id', $transactionIds)->delete();
+                    \Log::info('MatchController::destroy - Deleted fund transactions linked to match', [
+                        'match_id' => $match->id,
+                        'transactions_deleted' => $transactionIds->count()
+                    ]);
                 }
             }
 
             $deleted = $match->delete();
 
             if (!$deleted) {
+                \Log::error('MatchController::destroy - Delete returned false', [
+                    'match_id' => $match->id
+                ]);
                 throw new \RuntimeException('Không thể xóa trận đấu. Vui lòng thử lại.');
             }
 
             DB::commit();
+
+            \Log::info('MatchController::destroy - Match deleted successfully', [
+                'match_id' => $match->id
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -1379,6 +1409,11 @@ class MatchController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('MatchController::destroy - Exception', [
+                'match_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
