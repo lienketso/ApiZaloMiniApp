@@ -654,6 +654,7 @@ class ClubController extends Controller
             $offset = (int)($request->input('offset') ?? $request->query('offset') ?? 0);
             $search = $request->query('search');
             $sport = $request->query('sport'); // Filter theo bộ môn
+            $address = $request->query('address');
 
             // Query tối ưu cho joined clubs (không pagination vì thường ít)
             $joinedClubsQuery = Club::where('is_setup', true)
@@ -675,6 +676,10 @@ class ClubController extends Controller
             if ($search) {
                 $joinedClubsQuery->where('name', 'like', "%{$search}%");
                 $availableClubsQuery->where('name', 'like', "%{$search}%");
+            }
+            if ($address) {
+                $joinedClubsQuery->where('address', 'like', "%{$address}%");
+                $availableClubsQuery->where('address', 'like', "%{$address}%");
             }
 
             // Thêm filter theo bộ môn nếu có
