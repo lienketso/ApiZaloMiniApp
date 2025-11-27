@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\UserClub;
+use App\Models\Club;
 
 class EventController extends Controller
 {
@@ -246,9 +247,26 @@ class EventController extends Controller
 
         $membership = UserClub::where('user_id', $userId)
             ->where('club_id', $clubId)
-            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->where('is_active', true)
+                    ->orWhereNull('is_active')
+                    ->orWhereIn('status', ['active', 'approved']);
+            })
+            ->orderByDesc('updated_at')
             ->first();
 
-        return $membership?->role;
+        if ($membership) {
+            return $membership->role ?? $membership->club_role ?? $membership->user_role ?? null;
+        }
+
+        $club = Club::where('id', $clubId)
+            ->where('created_by', $userId)
+            ->first();
+
+        if ($club) {
+            return 'owner';
+        }
+
+        return null;
     }
 }
